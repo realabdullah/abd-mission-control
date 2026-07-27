@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  Inject,
   NotFoundException,
   Param,
   Patch,
@@ -20,7 +19,7 @@ import {
   incidentTypeSchema,
 } from '@abd-mission-control/contracts';
 import { z } from 'zod';
-import { EventHub, eventHub } from './events';
+import { eventHub } from './events';
 import { apiRepository } from './starlink.controller';
 
 const config = loadConfig(process.env);
@@ -131,8 +130,6 @@ function windowFor(range: string): { from: Date; to: Date } {
 
 @Controller()
 export class MonitoringController {
-  constructor(@Inject(EventHub) private readonly hub: EventHub = eventHub) {}
-
   @Get('incidents/active')
   async active() {
     const rows = await apiRepository.getIncidents({
@@ -203,7 +200,7 @@ export class MonitoringController {
     const updated = await apiRepository.updateAlertRule(id, rulePatchSchema.parse(body));
     if (!updated) throw new NotFoundException('Alert rule not found');
     const dto = ruleDto(updated);
-    this.hub.publish({ type: 'alert-rule.updated', data: dto });
+    eventHub.publish({ type: 'alert-rule.updated', data: dto });
     return dto;
   }
 
@@ -227,7 +224,7 @@ export class MonitoringController {
     const updated = await apiRepository.acknowledgeOccurrence(id);
     if (!updated) throw new NotFoundException('Alert not found');
     const dto = occurrenceDto(updated);
-    this.hub.publish({ type: 'alert.acknowledged', data: dto });
+    eventHub.publish({ type: 'alert.acknowledged', data: dto });
     return dto;
   }
 

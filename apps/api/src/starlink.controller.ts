@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Headers,
-  Inject,
   NotFoundException,
   Param,
   Post,
@@ -14,7 +13,7 @@ import type { Response } from 'express';
 import { z } from 'zod';
 import { loadConfig } from '@abd-mission-control/config';
 import { streamEventTypeSchema, telemetryMetricSchema } from '@abd-mission-control/contracts';
-import { EventHub, eventHub } from './events';
+import { eventHub } from './events';
 import { Internal } from './auth';
 import { apiDatabase, apiRepository } from './api-database';
 
@@ -80,7 +79,6 @@ function snapshotDto(row: unknown): unknown {
 
 @Controller()
 export class StarlinkController {
-  constructor(@Inject(EventHub) private readonly hub: EventHub = eventHub) {}
   private validateIntegration(id: string): void {
     if (id !== config.starlinkIntegrationId) throw new NotFoundException('Integration not found');
   }
@@ -184,7 +182,7 @@ export class StarlinkController {
   internalEvent(@Body() event: { type: string; data: unknown }) {
     const parsed = streamEventTypeSchema.safeParse(event.type);
     if (!parsed.success) return { accepted: false };
-    this.hub.publish({ type: parsed.data, data: event.data });
+    eventHub.publish({ type: parsed.data, data: event.data });
     return { accepted: true };
   }
   @Get('stream') stream(
@@ -199,7 +197,7 @@ export class StarlinkController {
     response.flushHeaders();
     response.write(': connected\n\n');
     let paused = false;
-    const unsubscribe = this.hub.subscribe((event) => {
+    const unsubscribe = eventHub.subscribe((event) => {
       if (paused) return;
       paused = !response.write(
         `id: ${event.id}\nevent: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`,
