@@ -2,8 +2,10 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 
 const route = useRoute();
+const { request } = useMissionApi();
 const sidebarOpen = ref(false);
 const sidebarExpanded = ref(false);
+const signingOut = ref(false);
 const nav = [
   { to: '/', label: 'Mission', icon: '◎' },
   { to: '/analytics', label: 'Analytics', icon: '⌁' },
@@ -17,6 +19,15 @@ function closeSidebar() {
 }
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') closeSidebar();
+}
+async function signOut(): Promise<void> {
+  signingOut.value = true;
+  try {
+    await request('/auth/logout', { method: 'POST' });
+  } finally {
+    await navigateTo('/login');
+    signingOut.value = false;
+  }
 }
 onMounted(() => window.addEventListener('keydown', onKeydown));
 onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
@@ -61,6 +72,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
         <NuxtLink class="nav-item" to="/settings" :class="{ active: isActive('/settings') }"
           ><span class="nav-icon">⚙</span><span>Settings</span></NuxtLink
         >
+        <button class="nav-item sign-out" type="button" :disabled="signingOut" @click="signOut">
+          <span class="nav-icon" aria-hidden="true">↗</span
+          ><span>{{ signingOut ? 'Signing out…' : 'Sign out' }}</span>
+        </button>
         <p class="version">MISSION CONTROL · PHASE 4</p>
       </div>
     </aside>
@@ -186,6 +201,22 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown));
 }
 .nav-item.active .nav-icon {
   color: var(--accent);
+}
+.sign-out {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+.sign-out:hover:not(:disabled) {
+  color: var(--critical);
+}
+.sign-out:hover:not(:disabled) .nav-icon {
+  color: var(--critical);
+}
+.sign-out:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 .sidebar-bottom {
   margin-top: auto;

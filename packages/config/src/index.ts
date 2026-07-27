@@ -22,6 +22,9 @@ const environmentSchema = z.object({
   EVENT_RETENTION_DAYS: z.coerce.number().int().positive().default(90),
   RETENTION_CLEANUP_INTERVAL_MS: z.coerce.number().int().positive().default(3600000),
   RETENTION_BATCH_SIZE: z.coerce.number().int().positive().max(10000).default(1000),
+  AUTH_OWNER_EMAIL: z.string().email().optional(),
+  AUTH_OWNER_PASSWORD: z.string().min(16).optional(),
+  AUTH_SESSION_SECRET: z.string().min(32).optional(),
 });
 export type AppConfig = {
   nodeEnv: 'development' | 'test' | 'production';
@@ -42,6 +45,9 @@ export type AppConfig = {
   eventRetentionDays: number;
   retentionCleanupIntervalMs: number;
   retentionBatchSize: number;
+  authOwnerEmail?: string;
+  authOwnerPassword?: string;
+  authSessionSecret?: string;
 };
 export function loadConfig(environment: NodeJS.ProcessEnv): AppConfig {
   // Render assigns the port for public web services through `PORT`. Keep the
@@ -70,5 +76,8 @@ export function loadConfig(environment: NodeJS.ProcessEnv): AppConfig {
     eventRetentionDays: value.EVENT_RETENTION_DAYS,
     retentionCleanupIntervalMs: value.RETENTION_CLEANUP_INTERVAL_MS,
     retentionBatchSize: value.RETENTION_BATCH_SIZE,
+    authOwnerEmail: value.AUTH_OWNER_EMAIL,
+    authOwnerPassword: value.AUTH_OWNER_PASSWORD,
+    authSessionSecret: value.AUTH_SESSION_SECRET,
   };
 }

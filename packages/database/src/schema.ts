@@ -19,6 +19,22 @@ export const integrations = pgTable('integrations', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const authUsers = pgTable(
+  'auth_users',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    email: text('email').notNull(),
+    passwordHash: text('password_hash').notNull(),
+    role: text('role').notNull().default('owner'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    email: uniqueIndex('auth_users_email_idx').on(table.email),
+    owner: uniqueIndex('auth_users_one_owner_idx').on(table.role),
+  }),
+);
 export const integrationSnapshots = pgTable('integration_snapshots', {
   integrationId: uuid('integration_id')
     .primaryKey()

@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-const config = useRuntimeConfig();
-const api = (path: string) => `${config.public.apiBase}/api/v1${path}`;
+const { request } = useMissionApi();
 const alerts = ref<Record<string, unknown>[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 async function load() {
   loading.value = true;
   try {
-    const response = await fetch(api('/alerts?limit=50'));
+    const response = await request('/alerts?limit=50');
     if (!response.ok) throw new Error('Alerts are temporarily unavailable.');
     alerts.value = (await response.json()) as Record<string, unknown>[];
     error.value = null;
@@ -19,7 +18,7 @@ async function load() {
   }
 }
 async function acknowledge(id: string) {
-  await fetch(api(`/alerts/${id}/acknowledge`), { method: 'POST' });
+  await request(`/alerts/${id}/acknowledge`, { method: 'POST' });
   await load();
 }
 function tone(value: unknown): 'warning' | 'critical' | 'info' {
@@ -44,7 +43,7 @@ onMounted(() => void load());
       {{ error }} <button @click="load">Try again</button>
     </div>
     <section class="list">
-      <div v-if="loading" class="empty-state">Loading current alerts…</div>
+      <PageSkeleton v-if="loading" />
       <div v-else-if="!alerts.length" class="empty-state">
         <span class="empty-icon">✓</span><strong>No alerts need attention.</strong
         ><span

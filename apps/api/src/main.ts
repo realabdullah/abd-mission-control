@@ -14,7 +14,7 @@ async function bootstrap(): Promise<void> {
       .split(',')
       .map((origin) => origin.trim())
       .filter(Boolean),
-    credentials: false,
+    credentials: true,
   });
   app.setGlobalPrefix('api/v1');
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));

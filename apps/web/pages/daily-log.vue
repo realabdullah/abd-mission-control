@@ -1,19 +1,23 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-const config = useRuntimeConfig();
-const api = (path: string) => `${config.public.apiBase}/api/v1${path}`;
+const { request } = useMissionApi();
 const summaries = ref<Record<string, unknown>[]>([]);
+const loading = ref(true);
 const error = ref<string | null>(null);
-onMounted(async () => {
+async function load() {
+  loading.value = true;
   try {
-    const response = await fetch(api('/daily-summaries?limit=30'));
+    const response = await request('/daily-summaries?limit=30');
     if (!response.ok) throw new Error('Daily summaries are temporarily unavailable.');
     summaries.value = (await response.json()) as Record<string, unknown>[];
   } catch (cause) {
     error.value =
       cause instanceof Error ? cause.message : 'Daily summaries are temporarily unavailable.';
+  } finally {
+    loading.value = false;
   }
-});
+}
+onMounted(() => void load());
 function duration(value: unknown): string {
   const seconds = Number(value);
   return seconds < 3600 ? `${Math.round(seconds / 60)}m` : `${(seconds / 3600).toFixed(1)}h`;
@@ -30,7 +34,8 @@ function duration(value: unknown): string {
       <StatusPill label="Local history" tone="info" />
     </header>
     <div v-if="error" class="error-banner">{{ error }}</div>
-    <section class="logs">
+    <PageSkeleton v-if="loading" variant="log" />
+    <section v-else class="logs">
       <div v-if="!summaries.length && !error" class="empty-state">
         <strong>Waiting for today's summary.</strong
         ><span>The collector generates a summary after its scheduled cycle.</span>

@@ -18,7 +18,10 @@
     "TELEMETRY_RETENTION_DAYS",
     "EVENT_RETENTION_DAYS",
     "RETENTION_CLEANUP_INTERVAL_MS",
-    "RETENTION_BATCH_SIZE"
+    "RETENTION_BATCH_SIZE",
+    "AUTH_OWNER_EMAIL",
+    "AUTH_OWNER_PASSWORD",
+    "AUTH_SESSION_SECRET"
   ],
   "tasks": {
     "build": { "dependsOn": ["^build"], "outputs": [".output/**", "dist/**"] },

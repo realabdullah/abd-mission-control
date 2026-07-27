@@ -14,6 +14,7 @@ import {
   alertRules,
   alertOccurrences,
   dailySummaries,
+  authUsers,
 } from './schema';
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 type Db = PostgresJsDatabase<typeof schema>;
@@ -430,13 +431,13 @@ export class TelemetryRepository {
     const toIso = to.toISOString();
     const [incidentsRows, metricRows, totalRows] = await Promise.all([
       this.db.execute(
-      sql`SELECT started_at AS "startedAt", ended_at AS "endedAt", active FROM incidents WHERE integration_id = ${integrationId} AND type IN ('internet_connectivity_lost', 'starlink_device_unreachable') AND started_at <= ${toIso} AND (ended_at IS NULL OR ended_at >= ${fromIso}) ORDER BY started_at`,
+        sql`SELECT started_at AS "startedAt", ended_at AS "endedAt", active FROM incidents WHERE integration_id = ${integrationId} AND type IN ('internet_connectivity_lost', 'starlink_device_unreachable') AND started_at <= ${toIso} AND (ended_at IS NULL OR ended_at >= ${fromIso}) ORDER BY started_at`,
       ),
       this.db.execute(
-      sql`SELECT metric, avg(value) AS average, max(value) AS maximum, percentile_cont(0.95) WITHIN GROUP (ORDER BY value) AS p95 FROM telemetry_samples WHERE integration_id = ${integrationId} AND recorded_at >= ${fromIso} AND recorded_at <= ${toIso} GROUP BY metric`,
+        sql`SELECT metric, avg(value) AS average, max(value) AS maximum, percentile_cont(0.95) WITHIN GROUP (ORDER BY value) AS p95 FROM telemetry_samples WHERE integration_id = ${integrationId} AND recorded_at >= ${fromIso} AND recorded_at <= ${toIso} GROUP BY metric`,
       ),
       this.db.execute(
-      sql`SELECT count(*)::int AS count FROM telemetry_samples WHERE integration_id = ${integrationId} AND recorded_at >= ${fromIso} AND recorded_at <= ${toIso}`,
+        sql`SELECT count(*)::int AS count FROM telemetry_samples WHERE integration_id = ${integrationId} AND recorded_at >= ${fromIso} AND recorded_at <= ${toIso}`,
       ),
     ]);
     const outageDurations = incidentsRows
@@ -521,5 +522,46 @@ export class TelemetryRepository {
       sql`WITH doomed AS (SELECT id FROM network_events WHERE occurred_at < ${beforeEvents.toISOString()}::timestamptz LIMIT ${batchSize}) DELETE FROM network_events USING doomed WHERE network_events.id = doomed.id RETURNING network_events.id`,
     );
     return { samples: sampleRows.length, events: eventRows.length };
+  }
+}
+
+export type AuthUserRecord = {
+  id: string;
+  email: string;
+  passwordHash: string;
+  role: string;
+};
+
+export class AuthRepository {
+  constructor(private readonly db: Db) {}
+
+  async findByEmail(email: string): Promise<AuthUserRecord | null> {
+    const rows = await this.db
+      .select({
+        id: authUsers.id,
+        email: authUsers.email,
+        passwordHash: authUsers.passwordHash,
+        role: authUsers.role,
+      })
+      .from(authUsers)
+      .where(eq(authUsers.email, email.toLowerCase()))
+      .limit(1);
+    return rows[0] ?? null;
+  }
+
+  async findById(id: string): Promise<Pick<AuthUserRecord, 'id' | 'email' | 'role'> | null> {
+    const rows = await this.db
+      .select({ id: authUsers.id, email: authUsers.email, role: authUsers.role })
+      .from(authUsers)
+      .where(eq(authUsers.id, id))
+      .limit(1);
+    return rows[0] ?? null;
+  }
+
+  async createOwner(email: string, passwordHash: string): Promise<void> {
+    await this.db
+      .insert(authUsers)
+      .values({ email: email.toLowerCase(), passwordHash, role: 'owner' })
+      .onConflictDoNothing();
   }
 }

@@ -10,11 +10,15 @@ services:
       - mission-control-postgres:/var/lib/postgresql/data
       - ./packages/database/drizzle/0000_phase2.sql:/docker-entrypoint-initdb.d/0000_phase2.sql:ro
       - ./packages/database/drizzle/0001_phase3_incidents.sql:/docker-entrypoint-initdb.d/0001_phase3_incidents.sql:ro
+      - ./packages/database/drizzle/0002_auth.sql:/docker-entrypoint-initdb.d/0002_auth.sql:ro
   api:
     build: { context: ., dockerfile: apps/api/Dockerfile }
     environment:
       API_HOST: 0.0.0.0
       API_CORS_ORIGIN: 'http://localhost:3000,http://127.0.0.1:3000'
+      AUTH_OWNER_EMAIL: ${AUTH_OWNER_EMAIL}
+      AUTH_OWNER_PASSWORD: ${AUTH_OWNER_PASSWORD}
+      AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET}
       DATABASE_URL: postgresql://mission_control:mission_control@postgres:5432/mission_control
     ports: ['3001:3001']
     depends_on: [postgres]

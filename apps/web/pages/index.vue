@@ -61,9 +61,8 @@ type Summary = {
   notableIssues: string[];
 };
 type Alert = { id: string; message: string; severity: string };
-const config = useRuntimeConfig();
+const { api, request } = useMissionApi();
 const integrationId = '00000000-0000-0000-0000-000000000001';
-const api = (path: string) => `${config.public.apiBase}/api/v1${path}`;
 const snapshot = ref<Snapshot | null>(null);
 const telemetry = ref<TelemetryRow[]>([]);
 const incidents = ref<Incident[]>([]);
@@ -78,7 +77,7 @@ const streamState = ref<'connecting' | 'live' | 'reconnecting'>('connecting');
 const cursorTime = ref<number | null>(null);
 let source: EventSource | undefined;
 async function get<T>(path: string): Promise<T | null> {
-  const response = await fetch(api(path));
+  const response = await request(path);
   if (!response.ok) throw new Error(`${response.status} ${path}`);
   return (await response.json()) as T;
 }
@@ -175,7 +174,7 @@ function tone(severity: string): 'success' | 'warning' | 'critical' | 'info' | '
         : 'muted';
 }
 async function acknowledge(id: string): Promise<void> {
-  await fetch(api(`/alerts/${id}/acknowledge`), { method: 'POST' });
+  await request(`/alerts/${id}/acknowledge`, { method: 'POST' });
   await load();
 }
 function selectRange(value: typeof range.value) {
@@ -184,7 +183,7 @@ function selectRange(value: typeof range.value) {
 }
 onMounted(() => {
   void load();
-  source = new EventSource(api('/stream'));
+  source = new EventSource(api('/stream'), { withCredentials: true });
   source.onopen = () => {
     streamState.value = 'live';
   };
@@ -230,275 +229,281 @@ onUnmounted(() => source?.close());
     <div v-if="error" class="error-banner" role="alert">
       {{ error }} <button @click="load">Try again</button>
     </div>
-    <section class="mission-summary" :class="state.tone">
-      <div class="summary-mark"><span>●</span></div>
-      <div class="summary-main">
-        <StatusPill :label="state.label" :tone="state.tone" />
-        <h2>{{ healthCopy }}</h2>
-        <p>
-          Starlink Mini · local network observation ·
-          {{ snapshot?.reachable ? 'Device reachable' : 'Waiting for device' }}
-        </p>
-      </div>
-      <div class="summary-side">
-        <span>LAST SAMPLE</span
-        ><strong>{{
-          snapshot?.lastSuccessfulSampleAt
-            ? new Date(snapshot.lastSuccessfulSampleAt).toLocaleTimeString()
-            : '—'
-        }}</strong
-        ><NuxtLink to="/incidents"
-          >{{
-            incidents.length
-              ? `${incidents.length} active issue${incidents.length === 1 ? '' : 's'}`
-              : 'No active incidents'
-          }}
-          →</NuxtLink
-        >
-      </div>
-    </section>
-    <section class="section-block">
-      <div class="section-title">
-        <div>
-          <span class="section-kicker">CURRENT CONNECTION</span>
-          <h2>Live metrics</h2>
+    <DashboardSkeleton v-if="loading" />
+    <template v-else>
+      <section class="mission-summary" :class="state.tone">
+        <div class="summary-mark"><span>●</span></div>
+        <div class="summary-main">
+          <StatusPill :label="state.label" :tone="state.tone" />
+          <h2>{{ healthCopy }}</h2>
+          <p>
+            Starlink Mini · local network observation ·
+            {{ snapshot?.reachable ? 'Device reachable' : 'Waiting for device' }}
+          </p>
         </div>
-        <span class="section-note">Direct from the latest device sample</span>
-      </div>
-      <div class="metric-grid">
-        <MetricCard
-          label="Latency"
-          :value="number(snapshot?.latencyMs, 'ms')"
-          context="POP ping"
-          :help="{
-            title: 'Latency',
-            text: 'The round-trip time to Starlink’s point of presence. Lower is generally better for calls, games, and responsive browsing.',
-          }"
-        /><MetricCard
-          label="Download"
-          :value="mbps(snapshot?.downlinkThroughputBps)"
-          context="Live throughput"
-          :help="{
-            title: 'Download throughput',
-            text: 'The current receive rate reported by the device. It is a momentary gauge, not a data-usage total.',
-          }"
-        /><MetricCard
-          label="Upload"
-          :value="mbps(snapshot?.uplinkThroughputBps)"
-          context="Live throughput"
-        /><MetricCard
-          label="Packet loss"
-          :value="number(snapshot?.packetLossPercent, '%')"
-          :context="
-            snapshot?.packetLossPercent == null
-              ? 'Not exposed by this device'
-              : 'Recent observation'
-          "
-          tone="muted"
-          :help="{
-            title: 'Packet loss',
-            text: 'The share of packets that did not arrive. This Starlink response does not currently expose the metric.',
-          }"
-        /><MetricCard
-          label="Uptime"
-          :value="duration(snapshot?.uptimeSeconds)"
-          context="Device runtime"
-        /><MetricCard
-          label="Obstruction"
-          :value="
-            snapshot?.obstructionFraction == null
-              ? 'Unavailable'
-              : `${(snapshot.obstructionFraction * 100).toFixed(2)}%`
-          "
-          context="Sky view fraction"
-          :help="{
-            title: 'Obstruction',
-            text: 'The fraction of the observed sky view affected by obstructions. Lower is better; this is not a direct outage percentage.',
-          }"
-        />
-      </div>
-    </section>
-    <section class="section-block">
-      <div class="section-title">
-        <div>
-          <span class="section-kicker">TELEMETRY</span>
-          <h2>Connection behaviour</h2>
-        </div>
-        <div class="range-switch" aria-label="Telemetry time range">
-          <button
-            v-for="option in ['1h', '6h', '24h', '7d', '30d']"
-            :key="option"
-            :class="{ selected: range === option }"
-            @click="selectRange(option as typeof range)"
-          >
-            {{ option }}
-          </button>
-        </div>
-      </div>
-      <div class="charts">
-        <TelemetryChart
-          title="Latency"
-          unit="ms"
-          :points="points('latency_ms')"
-          :range-label="range"
-          color="var(--mission)"
-          :cursor-time="cursorTime"
-          @update:cursor-time="cursorTime = $event"
-        /><TelemetryChart
-          title="Throughput"
-          unit="Mbps"
-          :points="points('downlink_throughput_bps')"
-          :range-label="range"
-          color="var(--telemetry)"
-          :cursor-time="cursorTime"
-          @update:cursor-time="cursorTime = $event"
-        /><TelemetryChart
-          title="Upload"
-          unit="Mbps"
-          :points="points('uplink_throughput_bps')"
-          :range-label="range"
-          color="var(--reliability)"
-          :cursor-time="cursorTime"
-          @update:cursor-time="cursorTime = $event"
-        /><TelemetryChart
-          title="Obstruction"
-          unit="fraction"
-          :points="points('obstruction_fraction')"
-          :range-label="range"
-          color="var(--info)"
-          :cursor-time="cursorTime"
-          @update:cursor-time="cursorTime = $event"
-        />
-      </div>
-      <p class="chart-footnote">
-        Hover to inspect a sample. Drag to pan and scroll to zoom. Missing observations remain gaps.
-      </p>
-    </section>
-    <section class="split-block">
-      <div class="section-block">
-        <div class="section-title">
-          <div>
-            <span class="section-kicker">TIMELINE</span>
-            <h2>Recent activity</h2>
-          </div>
-          <NuxtLink to="/incidents">View incidents →</NuxtLink>
-        </div>
-        <div class="event-list">
-          <div v-if="!events.length" class="empty-state">
-            <strong>Everything has been operating normally.</strong
-            ><span>Meaningful state changes will appear here as the mission develops.</span>
-          </div>
-          <article v-for="event in events" :key="event.id" class="event-row">
-            <span class="event-icon" :class="tone(event.severity)">●</span>
-            <div>
-              <strong>{{ event.description }}</strong
-              ><small
-                >{{ relative(event.occurredAt ?? event.timestamp ?? '') }} ·
-                {{ event.category }}</small
-              >
-            </div>
-          </article>
-        </div>
-      </div>
-      <div class="section-block attention">
-        <div class="section-title">
-          <div>
-            <span class="section-kicker">ATTENTION</span>
-            <h2>Open issues</h2>
-          </div>
-          <NuxtLink to="/alerts">All alerts →</NuxtLink>
-        </div>
-        <div v-if="!incidents.length && !alerts.length" class="empty-state">
-          <strong>No action needed.</strong
-          ><span>Active incidents and unacknowledged alerts will be surfaced here.</span>
-        </div>
-        <div v-for="incident in incidents" :key="incident.id" class="issue-row">
-          <StatusPill :label="incident.severity" :tone="tone(incident.severity)" />
-          <div>
-            <strong>{{ incident.title }}</strong
-            ><small>{{ duration(incident.durationSeconds) }} · {{ incident.description }}</small>
-          </div>
-        </div>
-        <div v-for="alert in alerts" :key="alert.id" class="issue-row">
-          <StatusPill :label="alert.severity" :tone="tone(alert.severity)" />
-          <div>
-            <strong>{{ alert.message }}</strong
-            ><button class="text-button" @click="acknowledge(alert.id)">Acknowledge</button>
-          </div>
-        </div>
-      </div>
-    </section>
-    <section class="bottom-grid">
-      <article class="insight-block">
-        <div class="section-title">
-          <div>
-            <span class="section-kicker">RELIABILITY / 24H</span>
-            <h2>How the link held</h2>
-          </div>
-          <NuxtLink to="/analytics">Open analytics →</NuxtLink>
-        </div>
-        <div class="insight-values">
-          <div>
-            <strong>{{ stats ? `${stats.uptimePercent.toFixed(2)}%` : '—' }}</strong
-            ><span
-              >Availability
-              <InfoTip
-                title="Availability"
-                text="The proportion of the selected window without confirmed local connectivity incidents. It is not a carrier SLA."
-            /></span>
-          </div>
-          <div>
-            <strong>{{ stats?.outageCount ?? '—' }}</strong
-            ><span>Outages</span>
-          </div>
-          <div>
-            <strong>{{ stats ? duration(stats.longestOutageSeconds) : '—' }}</strong
-            ><span>Longest outage</span>
-          </div>
-          <div>
-            <strong>{{
-              stats?.latencyP95Ms == null ? '—' : `${Math.round(stats.latencyP95Ms)} ms`
-            }}</strong
-            ><span
-              >Latency p95
-              <InfoTip
-                title="P95"
-                text="95% of observed latency samples were at or below this value. It shows typical worst-case behaviour without being dominated by one spike."
-            /></span>
-          </div>
-        </div>
-      </article>
-      <article class="insight-block">
-        <div class="section-title">
-          <div>
-            <span class="section-kicker">DAILY MISSION</span>
-            <h2>Today's record</h2>
-          </div>
-          <NuxtLink to="/daily-log">Daily log →</NuxtLink>
-        </div>
-        <div v-if="summary" class="daily-copy">
-          <strong>{{ summary.availabilityPercent.toFixed(2) }}% available today</strong
-          ><span
+        <div class="summary-side">
+          <span>LAST SAMPLE</span
+          ><strong>{{
+            snapshot?.lastSuccessfulSampleAt
+              ? new Date(snapshot.lastSuccessfulSampleAt).toLocaleTimeString()
+              : '—'
+          }}</strong
+          ><NuxtLink to="/incidents"
             >{{
-              summary.incidentCount
-                ? `${summary.incidentCount} incident${summary.incidentCount === 1 ? '' : 's'} recorded.`
-                : 'No incidents have required attention.'
+              incidents.length
+                ? `${incidents.length} active issue${incidents.length === 1 ? '' : 's'}`
+                : 'No active incidents'
             }}
-            Telemetry completeness: {{ summary.telemetryCompletenessPercent.toFixed(0) }}%.</span
+            →</NuxtLink
           >
         </div>
-        <div v-else class="empty-state">
-          <strong>Waiting for today's summary.</strong
-          ><span>The collector creates a deterministic daily record after its summary cycle.</span>
+      </section>
+      <section class="section-block">
+        <div class="section-title">
+          <div>
+            <span class="section-kicker">CURRENT CONNECTION</span>
+            <h2>Live metrics</h2>
+          </div>
+          <span class="section-note">Direct from the latest device sample</span>
         </div>
-      </article>
-    </section>
-    <footer class="technical">
-      <span>{{ snapshot?.hardwareVersion ?? 'Starlink Mini' }}</span
-      ><span>Firmware {{ snapshot?.firmwareVersion ?? 'Unavailable' }}</span
-      ><span>Power {{ number(snapshot?.powerWatts, 'W') }}</span
-      ><span>Local timezone display</span>
-    </footer>
+        <div class="metric-grid">
+          <MetricCard
+            label="Latency"
+            :value="number(snapshot?.latencyMs, 'ms')"
+            context="POP ping"
+            :help="{
+              title: 'Latency',
+              text: 'The round-trip time to Starlink’s point of presence. Lower is generally better for calls, games, and responsive browsing.',
+            }"
+          /><MetricCard
+            label="Download"
+            :value="mbps(snapshot?.downlinkThroughputBps)"
+            context="Live throughput"
+            :help="{
+              title: 'Download throughput',
+              text: 'The current receive rate reported by the device. It is a momentary gauge, not a data-usage total.',
+            }"
+          /><MetricCard
+            label="Upload"
+            :value="mbps(snapshot?.uplinkThroughputBps)"
+            context="Live throughput"
+          /><MetricCard
+            label="Packet loss"
+            :value="number(snapshot?.packetLossPercent, '%')"
+            :context="
+              snapshot?.packetLossPercent == null
+                ? 'Not exposed by this device'
+                : 'Recent observation'
+            "
+            tone="muted"
+            :help="{
+              title: 'Packet loss',
+              text: 'The share of packets that did not arrive. This Starlink response does not currently expose the metric.',
+            }"
+          /><MetricCard
+            label="Uptime"
+            :value="duration(snapshot?.uptimeSeconds)"
+            context="Device runtime"
+          /><MetricCard
+            label="Obstruction"
+            :value="
+              snapshot?.obstructionFraction == null
+                ? 'Unavailable'
+                : `${(snapshot.obstructionFraction * 100).toFixed(2)}%`
+            "
+            context="Sky view fraction"
+            :help="{
+              title: 'Obstruction',
+              text: 'The fraction of the observed sky view affected by obstructions. Lower is better; this is not a direct outage percentage.',
+            }"
+          />
+        </div>
+      </section>
+      <section class="section-block">
+        <div class="section-title">
+          <div>
+            <span class="section-kicker">TELEMETRY</span>
+            <h2>Connection behaviour</h2>
+          </div>
+          <div class="range-switch" aria-label="Telemetry time range">
+            <button
+              v-for="option in ['1h', '6h', '24h', '7d', '30d']"
+              :key="option"
+              :class="{ selected: range === option }"
+              @click="selectRange(option as typeof range)"
+            >
+              {{ option }}
+            </button>
+          </div>
+        </div>
+        <div class="charts">
+          <TelemetryChart
+            title="Latency"
+            unit="ms"
+            :points="points('latency_ms')"
+            :range-label="range"
+            color="var(--mission)"
+            :cursor-time="cursorTime"
+            @update:cursor-time="cursorTime = $event"
+          /><TelemetryChart
+            title="Throughput"
+            unit="Mbps"
+            :points="points('downlink_throughput_bps')"
+            :range-label="range"
+            color="var(--telemetry)"
+            :cursor-time="cursorTime"
+            @update:cursor-time="cursorTime = $event"
+          /><TelemetryChart
+            title="Upload"
+            unit="Mbps"
+            :points="points('uplink_throughput_bps')"
+            :range-label="range"
+            color="var(--reliability)"
+            :cursor-time="cursorTime"
+            @update:cursor-time="cursorTime = $event"
+          /><TelemetryChart
+            title="Obstruction"
+            unit="fraction"
+            :points="points('obstruction_fraction')"
+            :range-label="range"
+            color="var(--info)"
+            :cursor-time="cursorTime"
+            @update:cursor-time="cursorTime = $event"
+          />
+        </div>
+        <p class="chart-footnote">
+          Hover to inspect a sample. Drag to pan and scroll to zoom. Missing observations remain
+          gaps.
+        </p>
+      </section>
+      <section class="split-block">
+        <div class="section-block">
+          <div class="section-title">
+            <div>
+              <span class="section-kicker">TIMELINE</span>
+              <h2>Recent activity</h2>
+            </div>
+            <NuxtLink to="/incidents">View incidents →</NuxtLink>
+          </div>
+          <div class="event-list">
+            <div v-if="!events.length" class="empty-state">
+              <strong>Everything has been operating normally.</strong
+              ><span>Meaningful state changes will appear here as the mission develops.</span>
+            </div>
+            <article v-for="event in events" :key="event.id" class="event-row">
+              <span class="event-icon" :class="tone(event.severity)">●</span>
+              <div>
+                <strong>{{ event.description }}</strong
+                ><small
+                  >{{ relative(event.occurredAt ?? event.timestamp ?? '') }} ·
+                  {{ event.category }}</small
+                >
+              </div>
+            </article>
+          </div>
+        </div>
+        <div class="section-block attention">
+          <div class="section-title">
+            <div>
+              <span class="section-kicker">ATTENTION</span>
+              <h2>Open issues</h2>
+            </div>
+            <NuxtLink to="/alerts">All alerts →</NuxtLink>
+          </div>
+          <div v-if="!incidents.length && !alerts.length" class="empty-state">
+            <strong>No action needed.</strong
+            ><span>Active incidents and unacknowledged alerts will be surfaced here.</span>
+          </div>
+          <div v-for="incident in incidents" :key="incident.id" class="issue-row">
+            <StatusPill :label="incident.severity" :tone="tone(incident.severity)" />
+            <div>
+              <strong>{{ incident.title }}</strong
+              ><small>{{ duration(incident.durationSeconds) }} · {{ incident.description }}</small>
+            </div>
+          </div>
+          <div v-for="alert in alerts" :key="alert.id" class="issue-row">
+            <StatusPill :label="alert.severity" :tone="tone(alert.severity)" />
+            <div>
+              <strong>{{ alert.message }}</strong
+              ><button class="text-button" @click="acknowledge(alert.id)">Acknowledge</button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="bottom-grid">
+        <article class="insight-block">
+          <div class="section-title">
+            <div>
+              <span class="section-kicker">RELIABILITY / 24H</span>
+              <h2>How the link held</h2>
+            </div>
+            <NuxtLink to="/analytics">Open analytics →</NuxtLink>
+          </div>
+          <div class="insight-values">
+            <div>
+              <strong>{{ stats ? `${stats.uptimePercent.toFixed(2)}%` : '—' }}</strong
+              ><span
+                >Availability
+                <InfoTip
+                  title="Availability"
+                  text="The proportion of the selected window without confirmed local connectivity incidents. It is not a carrier SLA."
+              /></span>
+            </div>
+            <div>
+              <strong>{{ stats?.outageCount ?? '—' }}</strong
+              ><span>Outages</span>
+            </div>
+            <div>
+              <strong>{{ stats ? duration(stats.longestOutageSeconds) : '—' }}</strong
+              ><span>Longest outage</span>
+            </div>
+            <div>
+              <strong>{{
+                stats?.latencyP95Ms == null ? '—' : `${Math.round(stats.latencyP95Ms)} ms`
+              }}</strong
+              ><span
+                >Latency p95
+                <InfoTip
+                  title="P95"
+                  text="95% of observed latency samples were at or below this value. It shows typical worst-case behaviour without being dominated by one spike."
+              /></span>
+            </div>
+          </div>
+        </article>
+        <article class="insight-block">
+          <div class="section-title">
+            <div>
+              <span class="section-kicker">DAILY MISSION</span>
+              <h2>Today's record</h2>
+            </div>
+            <NuxtLink to="/daily-log">Daily log →</NuxtLink>
+          </div>
+          <div v-if="summary" class="daily-copy">
+            <strong>{{ summary.availabilityPercent.toFixed(2) }}% available today</strong
+            ><span
+              >{{
+                summary.incidentCount
+                  ? `${summary.incidentCount} incident${summary.incidentCount === 1 ? '' : 's'} recorded.`
+                  : 'No incidents have required attention.'
+              }}
+              Telemetry completeness: {{ summary.telemetryCompletenessPercent.toFixed(0) }}%.</span
+            >
+          </div>
+          <div v-else class="empty-state">
+            <strong>Waiting for today's summary.</strong
+            ><span
+              >The collector creates a deterministic daily record after its summary cycle.</span
+            >
+          </div>
+        </article>
+      </section>
+      <footer class="technical">
+        <span>{{ snapshot?.hardwareVersion ?? 'Starlink Mini' }}</span
+        ><span>Firmware {{ snapshot?.firmwareVersion ?? 'Unavailable' }}</span
+        ><span>Power {{ number(snapshot?.powerWatts, 'W') }}</span
+        ><span>Local timezone display</span>
+      </footer>
+    </template>
   </div>
 </template>
 

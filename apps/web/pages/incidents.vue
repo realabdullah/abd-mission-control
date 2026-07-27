@@ -1,17 +1,16 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
-const config = useRuntimeConfig();
-const api = (path: string) => `${config.public.apiBase}/api/v1${path}`;
+const { request } = useMissionApi();
 const incidents = ref<Record<string, unknown>[]>([]);
 const range = ref('30d');
+const loading = ref(true);
 const error = ref<string | null>(null);
 async function load() {
+  loading.value = true;
   const duration = range.value === '24h' ? 86400000 : range.value === '7d' ? 604800000 : 2592000000;
   try {
-    const response = await fetch(
-      api(
-        `/incidents?limit=100&from=${encodeURIComponent(new Date(Date.now() - duration).toISOString())}`,
-      ),
+    const response = await request(
+      `/incidents?limit=100&from=${encodeURIComponent(new Date(Date.now() - duration).toISOString())}`,
     );
     if (!response.ok) throw new Error('Incident history is temporarily unavailable.');
     incidents.value = (await response.json()) as Record<string, unknown>[];
@@ -19,6 +18,8 @@ async function load() {
   } catch (cause) {
     error.value =
       cause instanceof Error ? cause.message : 'Incident history is temporarily unavailable.';
+  } finally {
+    loading.value = false;
   }
 }
 function duration(value: unknown): string {
@@ -72,7 +73,8 @@ onMounted(() => void load());
         {{ item }}
       </button>
     </nav>
-    <section class="timeline">
+    <PageSkeleton v-if="loading" variant="timeline" />
+    <section v-else class="timeline">
       <div v-if="!incidents.length" class="empty-state">
         <span class="empty-icon">✓</span><strong>Everything has been operating normally.</strong
         ><span

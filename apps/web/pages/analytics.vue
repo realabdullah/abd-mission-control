@@ -1,22 +1,21 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import type { ChartPoint } from '~/components/TelemetryChart.vue';
-const config = useRuntimeConfig();
+const { request } = useMissionApi();
 const id = '00000000-0000-0000-0000-000000000001';
-const api = (path: string) => `${config.public.apiBase}/api/v1${path}`;
 const range = ref<'today' | '24h' | '7d' | '30d'>('7d');
 const stats = ref<Record<string, number | null> | null>(null);
 const telemetry = ref<Record<string, unknown>[]>([]);
+const loading = ref(true);
 const error = ref<string | null>(null);
 async function load() {
+  loading.value = true;
   error.value = null;
   try {
     const [s, t] = await Promise.all([
-      fetch(api(`/incidents/stats?range=${range.value}`)),
-      fetch(
-        api(
-          `/integrations/${id}/telemetry?range=${range.value === 'today' ? '24h' : range.value}&limit=400`,
-        ),
+      request(`/incidents/stats?range=${range.value}`),
+      request(
+        `/integrations/${id}/telemetry?range=${range.value === 'today' ? '24h' : range.value}&limit=400`,
       ),
     ]);
     if (!s.ok || !t.ok) throw new Error('Reliability data is temporarily unavailable.');
@@ -25,6 +24,8 @@ async function load() {
   } catch (cause) {
     error.value =
       cause instanceof Error ? cause.message : 'Reliability data is temporarily unavailable.';
+  } finally {
+    loading.value = false;
   }
 }
 function chart(metric: string): ChartPoint[] {
@@ -77,7 +78,8 @@ onMounted(() => void load());
         {{ item }}
       </button>
     </nav>
-    <section v-if="stats" class="stats-grid">
+    <PageSkeleton v-if="loading" variant="analytics" />
+    <section v-else-if="stats" class="stats-grid">
       <MetricCard
         label="Availability"
         :value="percent(stats.uptimePercent)"
@@ -116,7 +118,7 @@ onMounted(() => void load());
         }"
       />
     </section>
-    <section v-if="stats" class="analysis-grid">
+    <section v-if="!loading && stats" class="analysis-grid">
       <div>
         <div class="section-title">
           <div>
@@ -152,7 +154,7 @@ onMounted(() => void load());
         />
       </div>
     </section>
-    <section class="analysis-grid">
+    <section v-if="!loading" class="analysis-grid">
       <div>
         <div class="section-title">
           <div>
