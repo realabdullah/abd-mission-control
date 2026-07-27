@@ -16,6 +16,7 @@ import { loadConfig } from '@abd-mission-control/config';
 import { createDatabase, TelemetryRepository } from '@abd-mission-control/database';
 import { streamEventTypeSchema, telemetryMetricSchema } from '@abd-mission-control/contracts';
 import { EventHub } from './events';
+import { Internal } from './auth';
 
 export const telemetryQuerySchema = z
   .object({
@@ -179,7 +180,9 @@ export class StarlinkController {
       })
       .filter((row) => row !== null);
   }
-  @Post('internal/events') internalEvent(@Body() event: { type: string; data: unknown }) {
+  @Post('internal/events')
+  @Internal()
+  internalEvent(@Body() event: { type: string; data: unknown }) {
     const parsed = streamEventTypeSchema.safeParse(event.type);
     if (!parsed.success) return { accepted: false };
     this.hub.publish({ type: parsed.data, data: event.data });

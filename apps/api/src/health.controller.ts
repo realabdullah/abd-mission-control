@@ -12,7 +12,6 @@ export class HealthController {
   }
 
   @Get('system/status')
-  @Public()
   async systemStatus() {
     const config = loadConfig(process.env);
     let collector: 'ok' | 'unavailable' = 'unavailable';

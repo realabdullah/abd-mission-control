@@ -25,6 +25,7 @@ const environmentSchema = z.object({
   AUTH_OWNER_EMAIL: z.string().email().optional(),
   AUTH_OWNER_PASSWORD: z.string().min(16).optional(),
   AUTH_SESSION_SECRET: z.string().min(32).optional(),
+  COLLECTOR_API_TOKEN: z.string().min(32).optional(),
 });
 export type AppConfig = {
   nodeEnv: 'development' | 'test' | 'production';
@@ -48,6 +49,7 @@ export type AppConfig = {
   authOwnerEmail?: string;
   authOwnerPassword?: string;
   authSessionSecret?: string;
+  collectorApiToken?: string;
 };
 export function loadConfig(environment: NodeJS.ProcessEnv): AppConfig {
   // Render assigns the port for public web services through `PORT`. Keep the
@@ -79,5 +81,6 @@ export function loadConfig(environment: NodeJS.ProcessEnv): AppConfig {
     authOwnerEmail: value.AUTH_OWNER_EMAIL,
     authOwnerPassword: value.AUTH_OWNER_PASSWORD,
     authSessionSecret: value.AUTH_SESSION_SECRET,
+    collectorApiToken: value.COLLECTOR_API_TOKEN,
   };
 }

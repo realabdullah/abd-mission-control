@@ -2,6 +2,7 @@ import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypt
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   SetMetadata,
   UnauthorizedException,
@@ -13,9 +14,11 @@ import { apiDatabase } from './starlink.controller';
 
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
 const PUBLIC_ROUTE = 'mission-control:public-route';
+const INTERNAL_ROUTE = 'mission-control:internal-route';
 const config = loadConfig(process.env);
 
 export const Public = () => SetMetadata(PUBLIC_ROUTE, true);
+export const Internal = () => SetMetadata(INTERNAL_ROUTE, true);
 export type SessionUser = { id: string; email: string; role: string };
 
 function requiredAuthConfig(): { email: string; password: string; secret: string } {
@@ -117,6 +120,16 @@ export class AuthService {
       path: '/api/v1',
     };
   }
+
+  isValidCollectorToken(token: string | undefined): boolean {
+    const expected = config.collectorApiToken;
+    return (
+      Boolean(expected) &&
+      Boolean(token) &&
+      token!.length === expected!.length &&
+      timingSafeEqual(Buffer.from(token!), Buffer.from(expected!))
+    );
+  }
 }
 
 @Injectable()
@@ -136,8 +149,20 @@ export class SessionGuard implements CanActivate {
       return true;
     const request = context
       .switchToHttp()
-      .getRequest<{ headers: { cookie?: string }; user?: SessionUser }>();
-    const user = await this.auth.userFromRequest(request.headers.cookie);
+      .getRequest<{ headers: Record<string, string | string[] | undefined>; user?: SessionUser }>();
+    if (
+      this.reflector.getAllAndOverride<boolean>(INTERNAL_ROUTE, [
+        context.getHandler(),
+        context.getClass(),
+      ])
+    ) {
+      const token = request.headers['x-collector-token'];
+      if (typeof token !== 'string' || !this.auth.isValidCollectorToken(token))
+        throw new ForbiddenException('A valid collector token is required.');
+      return true;
+    }
+    const cookie = request.headers.cookie;
+    const user = await this.auth.userFromRequest(typeof cookie === 'string' ? cookie : undefined);
     if (!user) throw new UnauthorizedException('Sign in is required to access Mission Control.');
     request.user = user;
     return true;

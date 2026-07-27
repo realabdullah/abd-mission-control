@@ -18,11 +18,15 @@ const log = (event: string, details: Record<string, unknown>): void =>
   console.log(JSON.stringify({ event, ...details, at: new Date().toISOString() }));
 async function publish(type: string, data: unknown): Promise<void> {
   try {
-    await fetch(`${config.apiUrl}/api/v1/internal/events`, {
+    const response = await fetch(`${config.apiUrl}/api/v1/internal/events`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: {
+        'content-type': 'application/json',
+        ...(config.collectorApiToken ? { 'x-collector-token': config.collectorApiToken } : {}),
+      },
       body: JSON.stringify({ type, data }),
     });
+    if (!response.ok) throw new Error(`API event publish failed with ${response.status}`);
   } catch {
     log('collector.event_publish_failed', { type });
   }

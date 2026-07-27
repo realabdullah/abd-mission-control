@@ -19,6 +19,7 @@ services:
       AUTH_OWNER_EMAIL: ${AUTH_OWNER_EMAIL}
       AUTH_OWNER_PASSWORD: ${AUTH_OWNER_PASSWORD}
       AUTH_SESSION_SECRET: ${AUTH_SESSION_SECRET}
+      COLLECTOR_API_TOKEN: ${COLLECTOR_API_TOKEN}
       DATABASE_URL: postgresql://mission_control:mission_control@postgres:5432/mission_control
     ports: ['3001:3001']
     depends_on: [postgres]
@@ -28,6 +29,7 @@ services:
       COLLECTOR_HOST: 0.0.0.0
       DATABASE_URL: postgresql://mission_control:mission_control@postgres:5432/mission_control
       API_URL: http://api:3001
+      COLLECTOR_API_TOKEN: ${COLLECTOR_API_TOKEN}
     ports: ['3003:3003']
     depends_on: [postgres, api]
   web:

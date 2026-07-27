@@ -25,16 +25,20 @@ On its first deployment, apply these migrations to the Render database in order:
 
 1. `packages/database/drizzle/0000_phase2.sql`
 2. `packages/database/drizzle/0001_phase3_incidents.sql`
+3. `packages/database/drizzle/0002_auth.sql`
 
 Set the Render API service's `API_CORS_ORIGIN` to the exact Vercel production
-origin. The API reads Render's `PORT` automatically and binds to `0.0.0.0`.
+origin. Set `AUTH_OWNER_EMAIL`, `AUTH_OWNER_PASSWORD`, `AUTH_SESSION_SECRET`,
+and `COLLECTOR_API_TOKEN` as Render secrets. The API reads Render's `PORT`
+automatically and binds to `0.0.0.0`.
 
 The collector must run on an always-on machine that can reach the Starlink Mini
 on the local network. It cannot run on Render and collect from
 `192.168.100.1:9200`, because that address is private to the Starlink LAN. Run
 it using `pnpm --filter @abd-mission-control/collector start` on the LAN-side
 host, with `DATABASE_URL` set to the Render PostgreSQL external connection
-string and `API_URL` set to the public Render API URL. Do not publish the
+string, `API_URL` set to the public Render API URL, and `COLLECTOR_API_TOKEN`
+set to the same secret configured for the Render API. Do not publish the
 collector health endpoint or the Starlink device to the internet.
 
 Because the API's current SSE hub is in process, run a single API instance. A

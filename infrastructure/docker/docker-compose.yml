@@ -24,6 +24,7 @@ services:
         COLLECTOR_PORT: 3003,
         API_URL: http://api:3001,
         DATABASE_URL: postgresql://mission_control:mission_control@postgres:5432/mission_control,
+        COLLECTOR_API_TOKEN: '${COLLECTOR_API_TOKEN}',
       }
     depends_on: { postgres: { condition: service_healthy }, api: { condition: service_started } }
     ports: ['127.0.0.1:3003:3003']
@@ -37,6 +38,7 @@ services:
         AUTH_OWNER_EMAIL: '${AUTH_OWNER_EMAIL}',
         AUTH_OWNER_PASSWORD: '${AUTH_OWNER_PASSWORD}',
         AUTH_SESSION_SECRET: '${AUTH_SESSION_SECRET}',
+        COLLECTOR_API_TOKEN: '${COLLECTOR_API_TOKEN}',
         COLLECTOR_URL: http://collector:3003,
         DATABASE_URL: postgresql://mission_control:mission_control@postgres:5432/mission_control,
       }

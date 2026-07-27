@@ -21,7 +21,8 @@
     "RETENTION_BATCH_SIZE",
     "AUTH_OWNER_EMAIL",
     "AUTH_OWNER_PASSWORD",
-    "AUTH_SESSION_SECRET"
+    "AUTH_SESSION_SECRET",
+    "COLLECTOR_API_TOKEN"
   ],
   "tasks": {
     "build": { "dependsOn": ["^build"], "outputs": [".output/**", "dist/**"] },
