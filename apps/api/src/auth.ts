@@ -114,7 +114,10 @@ export class AuthService {
   sessionCookie() {
     return {
       httpOnly: true,
-      sameSite: 'lax' as const,
+      // The web app and API use different production origins, so browsers only
+      // include this session cookie on API fetches when it is explicitly
+      // permitted for cross-site requests.
+      sameSite: 'none' as const,
       secure: config.nodeEnv === 'production',
       maxAge: SESSION_TTL_SECONDS * 1000,
       path: '/api/v1',
