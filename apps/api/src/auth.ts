@@ -10,7 +10,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { loadConfig } from '@abd-mission-control/config';
 import { AuthRepository } from '@abd-mission-control/database';
-import { apiDatabase } from './starlink.controller';
+import { apiDatabase } from './api-database';
 
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
 const PUBLIC_ROUTE = 'mission-control:public-route';

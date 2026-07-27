@@ -13,10 +13,10 @@ import {
 import type { Response } from 'express';
 import { z } from 'zod';
 import { loadConfig } from '@abd-mission-control/config';
-import { createDatabase, TelemetryRepository } from '@abd-mission-control/database';
 import { streamEventTypeSchema, telemetryMetricSchema } from '@abd-mission-control/contracts';
 import { EventHub, eventHub } from './events';
 import { Internal } from './auth';
+import { apiDatabase, apiRepository } from './api-database';
 
 export const telemetryQuerySchema = z
   .object({
@@ -48,8 +48,7 @@ export function parseTelemetryQuery(query: Record<string, string | undefined>) {
   return telemetryQuerySchema.parse(query);
 }
 const config = loadConfig(process.env);
-export const apiDatabase = createDatabase(config.databaseUrl);
-export const apiRepository = new TelemetryRepository(apiDatabase.db);
+export { apiDatabase, apiRepository } from './api-database';
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
