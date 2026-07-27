@@ -2,15 +2,8 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "baseUrl": ".",
-    "paths": {
-      "@abd-mission-control/config": ["../../packages/config/src/index.ts"],
-      "@abd-mission-control/contracts": ["../../packages/contracts/src/index.ts"],
-      "@abd-mission-control/database": ["../../packages/database/src/index.ts"],
-      "@abd-mission-control/integrations": ["../../packages/integrations/src/index.ts"]
-    },
+    "module": "Node16",
+    "moduleResolution": "Node16",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "noEmit": false
