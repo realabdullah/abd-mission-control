@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mission_control
+      POSTGRES_PASSWORD: mission_control
+      POSTGRES_DB: mission_control
+    ports: ['5432:5432']
+    volumes:
+      - mission-control-postgres:/var/lib/postgresql/data
+      - ./packages/database/drizzle/0000_phase2.sql:/docker-entrypoint-initdb.d/0000_phase2.sql:ro
+      - ./packages/database/drizzle/0001_phase3_incidents.sql:/docker-entrypoint-initdb.d/0001_phase3_incidents.sql:ro
+  api:
+    build: { context: ., dockerfile: apps/api/Dockerfile }
+    environment:
+      API_HOST: 0.0.0.0
+      API_CORS_ORIGIN: 'http://localhost:3000,http://127.0.0.1:3000'
+      DATABASE_URL: postgresql://mission_control:mission_control@postgres:5432/mission_control
+    ports: ['3001:3001']
+    depends_on: [postgres]
+  collector:
+    build: { context: ., dockerfile: apps/collector/Dockerfile }
+    environment:
+      COLLECTOR_HOST: 0.0.0.0
+      DATABASE_URL: postgresql://mission_control:mission_control@postgres:5432/mission_control
+      API_URL: http://api:3001
+    ports: ['3003:3003']
+    depends_on: [postgres, api]
+  web:
+    build: { context: ., dockerfile: apps/web/Dockerfile }
+    environment:
+      NUXT_PUBLIC_API_BASE: http://localhost:3001
+    ports: ['3000:3000']
+    depends_on: [api]
+volumes:
+  mission-control-postgres:

@@ -1,0 +1,90 @@
+import { createServer } from 'node:http';
+import { loadConfig } from '@abd-mission-control/config';
+import { createDatabase, TelemetryRepository } from '@abd-mission-control/database';
+import { StarlinkClient } from '@abd-mission-control/integrations';
+import { IncidentRuleEngine } from './incidents';
+import { generateDailySummary } from './daily-summary';
+import { CollectorPoller, realClock } from './poller';
+
+const config = loadConfig(process.env);
+const database = createDatabase(config.databaseUrl);
+const repository = new TelemetryRepository(database.db);
+const client = new StarlinkClient(
+  `${config.starlinkHost}:${config.starlinkPort}`,
+  config.starlinkRequestTimeoutMs,
+);
+let cleanupRunning = false;
+const log = (event: string, details: Record<string, unknown>): void =>
+  console.log(JSON.stringify({ event, ...details, at: new Date().toISOString() }));
+async function publish(type: string, data: unknown): Promise<void> {
+  try {
+    await fetch(`${config.apiUrl}/api/v1/internal/events`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type, data }),
+    });
+  } catch {
+    log('collector.event_publish_failed', { type });
+  }
+}
+const incidentEngine = new IncidentRuleEngine(config.starlinkIntegrationId, repository, publish);
+const poller = new CollectorPoller({
+  intervalMs: config.starlinkPollIntervalMs,
+  timeoutMs: config.starlinkRequestTimeoutMs,
+  maxAttempts: 3,
+  baseDelayMs: 250,
+  maxDelayMs: 5000,
+  jitterRatio: 0.2,
+  random: Math.random,
+  clock: realClock,
+  integrationId: config.starlinkIntegrationId,
+  sink: repository,
+  provider: client,
+  incidentEngine,
+  publish,
+  logger: log,
+});
+const server = createServer((_request, response) => {
+  response.writeHead(200, { 'content-type': 'application/json' });
+  response.end(JSON.stringify({ service: 'collector', ...poller.getHealth() }));
+});
+async function cleanup(): Promise<void> {
+  if (cleanupRunning) return;
+  cleanupRunning = true;
+  const started = Date.now();
+  try {
+    const result = await repository.cleanupExpired(
+      new Date(Date.now() - config.telemetryRetentionDays * 86400000),
+      new Date(Date.now() - config.eventRetentionDays * 86400000),
+      config.retentionBatchSize,
+    );
+    log('collector.cleanup_completed', { ...result, durationMs: Date.now() - started });
+    await generateDailySummary(repository, config.starlinkIntegrationId);
+  } catch (error: unknown) {
+    log('collector.cleanup_failed', {
+      error: error instanceof Error ? error.message : 'unknown',
+      durationMs: Date.now() - started,
+    });
+  } finally {
+    cleanupRunning = false;
+  }
+}
+void poller.runCycle().finally(() => incidentEngine.evaluateHealth(poller.getHealth()));
+const pollInterval = setInterval(() => {
+  void poller.runCycle().finally(() => incidentEngine.evaluateHealth(poller.getHealth()));
+}, config.starlinkPollIntervalMs);
+const cleanupInterval = setInterval(() => {
+  void cleanup();
+}, config.retentionCleanupIntervalMs);
+server.listen(config.collectorPort, config.collectorHost);
+const shutdown = (): void => {
+  log('collector.shutdown_started', {});
+  clearInterval(pollInterval);
+  clearInterval(cleanupInterval);
+  poller.stop();
+  client.close();
+  void database.close();
+  server.close(() => process.exit(0));
+};
+process.once('SIGTERM', shutdown);
+process.once('SIGINT', shutdown);

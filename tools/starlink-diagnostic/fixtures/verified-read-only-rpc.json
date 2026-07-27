@@ -1,0 +1,16 @@
+{
+  "transport": "plaintext-http2",
+  "endpoint": "<local-starlink-endpoint>:9200",
+  "command": [
+    "grpcurl",
+    "-plaintext",
+    "-d",
+    "{\"get_status\":{}}",
+    "<local-starlink-endpoint>:9200",
+    "SpaceX.API.Device.Device/Handle"
+  ],
+  "requestFieldVerifiedByReflection": "SpaceX.API.Device.Request.get_status",
+  "responseFieldVerifiedByReflection": "SpaceX.API.Device.Response.dish_get_status",
+  "responseFixture": "get-status.response.sanitized.json",
+  "mutating": false
+}

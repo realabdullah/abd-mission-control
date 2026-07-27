@@ -1,0 +1,31 @@
+// Subset of the reflected SpaceX.API.Device schema verified against a Starlink Mini
+// on 2026-07-27. This file intentionally contains only the read-only Handle/get_status
+// path used by the collector; reflection is not required at runtime.
+syntax = "proto3";
+package SpaceX.API.Device;
+
+service Device { rpc Handle(Request) returns (Response); }
+message Request { GetStatusRequest get_status = 1004; }
+message GetStatusRequest { RouterRole router_role = 1; }
+enum RouterRole { UNSPECIFIED = 0; CONTROLLER = 1; REPEATER = 2; BYPASSED = 3; }
+message Response { DishGetStatusResponse dish_get_status = 2004; }
+message DeviceInfo { string id = 1; string hardware_version = 2; string software_version = 3; string country_code = 4; int32 utc_offset_s = 5; int32 bootcount = 8; int64 generation_number = 12; string build_id = 15; }
+message DeviceState { uint64 uptime_s = 1; }
+message DishObstructionStats { float fraction_obstructed = 1; float valid_s = 4; bool currently_obstructed = 5; float avg_prolonged_obstruction_duration_s = 6; float avg_prolonged_obstruction_interval_s = 7; float time_obstructed = 9; uint32 patches_valid = 10; }
+message DishAlerts { bool motors_stuck = 1; bool thermal_shutdown = 2; bool thermal_throttle = 3; bool unexpected_location = 4; bool mast_not_near_vertical = 5; bool slow_ethernet_speeds = 6; bool roaming = 7; bool install_pending = 8; bool is_heating = 9; bool power_supply_thermal_throttle = 10; bool is_power_save_idle = 11; bool dbf_telem_stale = 14; bool no_ethernet_link = 23; }
+message DishGpsStats { bool gps_valid = 1; uint32 gps_sats = 2; }
+message DishReadyStates { bool cady = 1; bool scp = 2; bool l1l2 = 3; bool xphy = 4; bool aap = 5; bool rf = 6; }
+message SoftwareUpdateStats { float software_update_progress = 2; bool update_requires_reboot = 3; }
+message AlignmentStats { float tilt_angle_deg = 3; float boresight_azimuth_deg = 4; float boresight_elevation_deg = 5; float attitude_uncertainty_deg = 7; }
+message DishUpsuStats { float dish_power = 6; float router_power = 7; }
+message DishApsStats { float dish_power = 6; }
+message DishBatteryStats { float battery_voltage = 1; float battery_capacity = 2; }
+message DishGetStatusResponse {
+  DeviceInfo device_info = 1; DeviceState device_state = 2; float seconds_to_first_nonempty_slot = 1002;
+  float pop_ping_drop_rate = 1003; DishObstructionStats obstruction_stats = 1004; DishAlerts alerts = 1005;
+  float downlink_throughput_bps = 1007; float uplink_throughput_bps = 1008; float pop_ping_latency_ms = 1009;
+  DishGpsStats gps_stats = 1015; int32 eth_speed_mbps = 1016; DishReadyStates ready_states = 1019;
+  SoftwareUpdateStats software_update_stats = 1026; AlignmentStats alignment_stats = 1027;
+  repeated string connected_routers = 1040; DishUpsuStats upsu_stats = 1043; DishApsStats aps_stats = 1048;
+  DishBatteryStats battery_stats = 1054; bool treat_as_metered = 1056;
+}

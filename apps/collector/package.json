@@ -1,0 +1,23 @@
+{
+  "name": "@abd-mission-control/collector",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "lint": "eslint src",
+    "type-check": "tsc --noEmit",
+    "test": "tsx --test src/**/*.test.ts"
+  },
+  "dependencies": {
+    "@abd-mission-control/config": "workspace:*",
+    "@abd-mission-control/logger": "workspace:*",
+    "@abd-mission-control/contracts": "workspace:*",
+    "@abd-mission-control/database": "workspace:*",
+    "@abd-mission-control/integrations": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3"
+  }
+}

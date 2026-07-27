@@ -1,0 +1,21 @@
+{
+  "name": "@abd-mission-control/web",
+  "private": true,
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "start": "nuxt start",
+    "lint": "eslint .",
+    "type-check": "nuxt typecheck",
+    "test": "echo 'No web tests yet'"
+  },
+  "dependencies": {
+    "@abd-mission-control/contracts": "workspace:*",
+    "nuxt": "^3.17.3",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vue-tsc": "^2.2.8"
+  }
+}

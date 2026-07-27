@@ -1,0 +1,30 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalEnv": [
+    "NODE_ENV",
+    "API_HOST",
+    "API_PORT",
+    "API_URL",
+    "API_CORS_ORIGIN",
+    "COLLECTOR_HOST",
+    "COLLECTOR_PORT",
+    "COLLECTOR_URL",
+    "DATABASE_URL",
+    "STARLINK_HOST",
+    "STARLINK_PORT",
+    "STARLINK_INTEGRATION_ID",
+    "STARLINK_POLL_INTERVAL_MS",
+    "STARLINK_REQUEST_TIMEOUT_MS",
+    "TELEMETRY_RETENTION_DAYS",
+    "EVENT_RETENTION_DAYS",
+    "RETENTION_CLEANUP_INTERVAL_MS",
+    "RETENTION_BATCH_SIZE"
+  ],
+  "tasks": {
+    "build": { "dependsOn": ["^build"], "outputs": [".output/**", "dist/**"] },
+    "type-check": { "dependsOn": ["^build"], "outputs": [] },
+    "lint": { "outputs": [] },
+    "test": { "dependsOn": ["^build"], "outputs": [] },
+    "dev": { "dependsOn": ["^build"], "cache": false, "persistent": true }
+  }
+}

@@ -1,0 +1,238 @@
+{
+  "tool": {
+    "name": "abd-mission-control-starlink-diagnostic",
+    "version": "0.1.0",
+    "startedAt": "2026-07-26T23:41:54.365Z",
+    "finishedAt": "2026-07-26T23:41:56.846Z",
+    "receivedArgs": ["--", "--host", "192.168.100.1", "--output", "starlink-diagnostic.json"],
+    "normalizedArgs": ["--host", "192.168.100.1", "--output", "starlink-diagnostic.json"]
+  },
+  "target": {
+    "host": "192.168.100.1",
+    "ports": [9200, 9201, 9000, 9001],
+    "timeoutMs": 1500,
+    "endpoint": "192.168.100.1:9200"
+  },
+  "dependency": {
+    "requested": "grpcurl",
+    "resolvedPath": "/opt/homebrew/bin/grpcurl",
+    "version": "grpcurl 1.9.3",
+    "available": true,
+    "error": null,
+    "lookup": {
+      "command": ["which", "grpcurl"],
+      "endpoint": null,
+      "transport": "none",
+      "elapsedMs": 8,
+      "exitCode": 0,
+      "stdout": "/opt/homebrew/bin/grpcurl\n",
+      "stderr": "",
+      "outcome": "success",
+      "error": null
+    },
+    "versionCheck": {
+      "command": ["/opt/homebrew/bin/grpcurl", "-version"],
+      "endpoint": null,
+      "transport": "none",
+      "elapsedMs": 48,
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "grpcurl 1.9.3\n",
+      "outcome": "success",
+      "error": null
+    }
+  },
+  "tcp": [
+    {
+      "host": "192.168.100.1",
+      "port": 9200,
+      "address": "192.168.100.1:9200",
+      "reachable": true,
+      "elapsedMs": 16,
+      "error": null
+    },
+    {
+      "host": "192.168.100.1",
+      "port": 9201,
+      "address": "192.168.100.1:9201",
+      "reachable": true,
+      "elapsedMs": 15,
+      "error": null
+    },
+    {
+      "host": "192.168.100.1",
+      "port": 9000,
+      "address": "192.168.100.1:9000",
+      "reachable": false,
+      "elapsedMs": 1502,
+      "error": "timeout"
+    },
+    {
+      "host": "192.168.100.1",
+      "port": 9001,
+      "address": "192.168.100.1:9001",
+      "reachable": false,
+      "elapsedMs": 1502,
+      "error": "timeout"
+    }
+  ],
+  "grpc": {
+    "transport": "plaintext-http2",
+    "endpoint": "192.168.100.1:9200",
+    "reflection": {
+      "requested": true,
+      "spawned": true,
+      "supported": true,
+      "error": null,
+      "discoveredServices": [
+        "SpaceX.API.Device.Device",
+        "grpc.reflection.v1.ServerReflection",
+        "grpc.reflection.v1alpha.ServerReflection"
+      ],
+      "relevantService": "SpaceX.API.Device.Device",
+      "verifiedReadOnlyRpcs": ["SpaceX.API.Device.Device/Handle { get_status: {} }"],
+      "commands": [
+        {
+          "command": ["/opt/homebrew/bin/grpcurl", "-plaintext", "192.168.100.1:9200", "list"],
+          "endpoint": "192.168.100.1:9200",
+          "transport": "plaintext-http2",
+          "elapsedMs": 57,
+          "exitCode": 0,
+          "stdout": "SpaceX.API.Device.Device\ngrpc.reflection.v1.ServerReflection\ngrpc.reflection.v1alpha.ServerReflection\n",
+          "stderr": "",
+          "outcome": "success",
+          "error": null
+        },
+        {
+          "command": [
+            "/opt/homebrew/bin/grpcurl",
+            "-plaintext",
+            "192.168.100.1:9200",
+            "list",
+            "SpaceX.API.Device.Device"
+          ],
+          "endpoint": "192.168.100.1:9200",
+          "transport": "plaintext-http2",
+          "elapsedMs": 114,
+          "exitCode": 0,
+          "stdout": "SpaceX.API.Device.Device.Handle\nSpaceX.API.Device.Device.Stream\n",
+          "stderr": "",
+          "outcome": "success",
+          "error": null
+        },
+        {
+          "command": [
+            "/opt/homebrew/bin/grpcurl",
+            "-plaintext",
+            "192.168.100.1:9200",
+            "describe",
+            "SpaceX.API.Device.Device"
+          ],
+          "endpoint": "192.168.100.1:9200",
+          "transport": "plaintext-http2",
+          "elapsedMs": 95,
+          "exitCode": 0,
+          "stdout": "SpaceX.API.Device.Device is a service:\nservice Device {\n  rpc Handle ( .SpaceX.API.Device.Request ) returns ( .SpaceX.API.Device.Response );\n  rpc Stream ( stream .SpaceX.API.Device.ToDevice ) returns ( stream .SpaceX.API.Device.FromDevice );\n}\n",
+          "stderr": "",
+          "outcome": "success",
+          "error": null
+        },
+        {
+          "command": [
+            "/opt/homebrew/bin/grpcurl",
+            "-plaintext",
+            "192.168.100.1:9200",
+            "describe",
+            "SpaceX.API.Device.Request"
+          ],
+          "endpoint": "192.168.100.1:9200",
+          "transport": "plaintext-http2",
+          "elapsedMs": 97,
+          "exitCode": 0,
+          "stdout": "SpaceX.API.Device.Request is a message:\nmessage Request {\n  uint64 id = 1;\n  string target_id = 13;\n  uint64 epoch_id = 14;\n  oneof request {\n    .SpaceX.API.Device.SignedData signed_request = 15;\n    .SpaceX.API.Device.RebootRequest reboot = 1001;\n    .SpaceX.API.Device.SpeedTestRequest speed_test = 1003;\n    .SpaceX.API.Device.GetStatusRequest get_status = 1004;\n    .SpaceX.API.Device.AuthenticateRequest authenticate = 1005;\n    .SpaceX.API.Device.GetNextIdRequest get_next_id = 1006;\n    .SpaceX.API.Device.GetHistoryRequest get_history = 1007;\n    .SpaceX.API.Device.GetDeviceInfoRequest get_device_info = 1008;\n    .SpaceX.API.Device.GetPingRequest get_ping = 1009;\n    .SpaceX.API.Device.SetTrustedKeysRequest set_trusted_keys = 1010;\n    .SpaceX.API.Device.FactoryResetRequest factory_reset = 1011;\n    .SpaceX.API.Device.GetLogRequest get_log = 1012;\n    .SpaceX.API.Device.SetSkuRequest set_sku = 1013;\n    .SpaceX.API.Device.UpdateRequest update = 1014;\n    .SpaceX.API.Device.GetNetworkInterfacesRequest get_network_interfaces = 1015;\n    .SpaceX.API.Device.PingHostRequest ping_host = 1016;\n    .SpaceX.API.Device.GetLocationRequest get_location = 1017;\n    .SpaceX.API.Device.GetHeapDumpRequest get_heap_dump = 1019;\n    .SpaceX.API.Device.RestartControlRequest restart_control = 1020;\n    .SpaceX.API.Device.FuseRequest fuse = 1021;\n    .SpaceX.API.Device.GetPersistentStatsRequest get_persistent_stats = 1022;\n    .SpaceX.API.Device.GetConnectionsRequest get_connections = 1023 [deprecated = true];\n    .SpaceX.API.Device.StartSpeedtestRequest start_speedtest = 1027;\n    .SpaceX.API.Device.GetSpeedtestStatusRequest get_speedtest_status = 1028;\n    .SpaceX.API.Device.ReportClientSpeedtestRequest report_client_speedtest = 1029;\n    .SpaceX.API.Device.InitiateRemoteSshRequest initiate_remote_ssh = 1030 [deprecated = true];\n    .SpaceX.API.Device.SelfTestRequest self_test = 1031;\n    .SpaceX.API.Device.SetTestModeRequest set_test_mode = 1032;\n    .SpaceX.API.Device.SoftwareUpdateRequest software_update = 1033;\n    .SpaceX.API.Device.EnableDebugTelemRequest enable_debug_telem = 1034;\n    .SpaceX.API.Device.IQCaptureRequest iq_capture = 1035;\n    .SpaceX.API.Device.GetRadioStatsRequest get_radio_stats = 1036;\n    .SpaceX.API.Device.GetTimeRequest time = 1037;\n    .SpaceX.API.Device.RunIperfServerRequest run_iperf_server = 1038;\n    .SpaceX.API.Device.TcpConnectivityTestRequest tcp_connectivity_test = 1039;\n    .SpaceX.API.Device.UdpConnectivityTestRequest udp_connectivity_test = 1040;\n    .SpaceX.API.Device.GetGoroutineStackTracesRequest get_goroutine_stack_traces = 1041;\n    .SpaceX.API.Device.SignedData sensitive_request = 1078;\n    .SpaceX.API.Device.DishStowRequest dish_stow = 2002;\n    .SpaceX.API.Device.DishGetContextRequest dish_get_context = 2003;\n    .SpaceX.API.Device.DishSetEmcRequest dish_set_emc = 2007;\n    .SpaceX.API.Device.DishGetObstructionMapRequest dish_get_obstruction_map = 2008;\n    .SpaceX.API.Device.DishGetEmcRequest dish_get_emc = 2009;\n    .SpaceX.API.Device.DishSetConfigRequest dish_set_config = 2010;\n    .SpaceX.API.Device.DishGetConfigRequest dish_get_config = 2011;\n    .SpaceX.API.Device.DishPowerSaveRequest dish_power_save = 2013;\n    .SpaceX.API.Device.DishInhibitGpsRequest dish_inhibit_gps = 2014;\n    .SpaceX.API.Device.DishGetDataRequest dish_get_data = 2015;\n    .SpaceX.API.Device.DishClearObstructionMapRequest dish_clear_obstruction_map = 2017;\n    .SpaceX.API.Device.DishSetMaxPowerTestModeRequest dish_set_max_power_test_mode = 2018;\n    .SpaceX.API.Device.DishActivateRssiScanRequest dish_activate_rssi_scan = 2019;\n    .SpaceX.API.Device.DishGetRssiScanResultRequest dish_get_rssi_scan_result = 2020;\n    .SpaceX.API.Device.DishFactoryResetRequest dish_factory_reset = 2021;\n    .SpaceX.API.Device.ResetButtonRequest reset_button = 2022;\n    .SpaceX.API.Device.SoftwareUpdateRequest set_per_vehicle_config = 2023;\n    .SpaceX.API.Device.DishAviationTestRequest dish_aviation_test = 2024;\n    .SpaceX.API.Device.DishInhibitRfRequest dish_inhibit_rf = 2026;\n    .SpaceX.API.Device.ZtlmQueryRequest ztlm_query = 2027;\n    .SpaceX.API.Device.DishStartTestModeServerRequest dish_start_test_mode_server = 2028;\n    .SpaceX.API.Device.UserReportedIssueRequest user_reported_issue = 2029;\n    .SpaceX.API.Device.WifiSetConfigRequest wifi_set_config = 3001;\n    .SpaceX.API.Device.WifiGetClientsRequest wifi_get_clients = 3002;\n    .SpaceX.API.Device.WifiSetupRequest wifi_setup = 3003;\n    .SpaceX.API.Device.WifiGetPingMetricsRequest wifi_get_ping_metrics = 3007;\n    .SpaceX.API.Device.WifiGetConfigRequest wifi_get_config = 3009;\n    .SpaceX.API.Device.WifiSetMeshDeviceTrustRequest wifi_set_mesh_device_trust = 3012;\n    .SpaceX.API.Device.WifiSetMeshConfigRequest wifi_set_mesh_config = 3013 [deprecated = true];\n    .SpaceX.API.Device.WifiGetClientHistoryRequest wifi_get_client_history = 3015;\n    .SpaceX.API.Device.WifiSetAviationConformedRequest wifi_set_aviation_conformed = 3016;\n    .SpaceX.API.Device.WifiSetClientGivenNameRequest wifi_set_client_given_name = 3017;\n    .SpaceX.API.Device.WifiSelfTestRequest wifi_self_test = 3018;\n    .SpaceX.API.Device.WifiCalibrationModeRequest wifi_calibration_mode = 3019;\n    .SpaceX.API.Device.WifiGuestInfoRequest wifi_guest_info = 3020;\n    .SpaceX.API.Device.WifiRfTestRequest wifi_rf_test = 3021;\n    .SpaceX.API.Device.WifiGetFirewallRequest wifi_get_firewall = 3024;\n    .SpaceX.API.Device.WifiTogglePoeNegotiationRequest wifi_toggle_poe_negotiation = 3025;\n    .SpaceX.API.Device.WifiFactoryTestCommandRequest wifi_factory_test_command = 3026;\n    .SpaceX.API.Device.WifiStartLocalTelemProxyRequest wifi_start_local_telem_proxy = 3027;\n    .SpaceX.API.Device.WifiRunSelfTestRequest wifi_run_self_test = 3028;\n    .SpaceX.API.Device.WifiBackhaulStatsRequest wifi_backhaul_stats = 3029;\n    .SpaceX.API.Device.WifiToggleUmbilicalModeRequest wifi_toggle_umbilical_mode = 3030;\n    .SpaceX.API.Device.WifiClientSandboxRequest wifi_client_sandbox = 3031;\n    .SpaceX.API.Device.WifiRunDebugNetsysRequest wifi_run_debug_netsys = 3032;\n    .SpaceX.API.Device.WifiResetEthPhyRequest wifi_reset_eth_phy = 3033;\n    .SpaceX.API.Device.WifiFlushHardwareNatRequest wifi_flush_hardware_nat = 3034;\n    .SpaceX.API.Device.WifiWriteCalibrationRequest wifi_write_calibration = 3035;\n    .SpaceX.API.Device.TransceiverIFLoopbackTestRequest transceiver_if_loopback_test = 4001;\n    .SpaceX.API.Device.TransceiverGetStatusRequest transceiver_get_status = 4003;\n    .SpaceX.API.Device.TransceiverGetTelemetryRequest transceiver_get_telemetry = 4004;\n    .SpaceX.API.Device.Services.Unlock.StartUnlockRequest start_unlock = 5000;\n    .SpaceX.API.Device.Services.Unlock.FinishUnlockRequest finish_unlock = 5001;\n    .SpaceX.API.Device.GetDiagnosticsRequest get_diagnostics = 6000;\n    .SpaceX.API.Device.GetGnssMeasurementRequest get_gnss_measurement = 7000;\n    .SpaceX.API.Device.ToggleModeRequest toggle_mode = 7001;\n  }\n  reserved 1018, 1025, 1026, 2012, 2016, 3011, 3014, 3202;\n  reserved \"start_dish_self_test\";\n}\n",
+          "stderr": "",
+          "outcome": "success",
+          "error": null
+        },
+        {
+          "command": [
+            "/opt/homebrew/bin/grpcurl",
+            "-plaintext",
+            "192.168.100.1:9200",
+            "describe",
+            "SpaceX.API.Device.Response"
+          ],
+          "endpoint": "192.168.100.1:9200",
+          "transport": "plaintext-http2",
+          "elapsedMs": 179,
+          "exitCode": 0,
+          "stdout": "SpaceX.API.Device.Response is a message:\nmessage Response {\n  uint64 id = 1;\n  .SpaceX.API.Status.Status status = 2;\n  uint64 api_version = 3;\n  oneof response {\n    .SpaceX.API.Device.RebootResponse reboot = 1001;\n    .SpaceX.API.Device.SpeedTestResponse speed_test = 1003;\n    .SpaceX.API.Device.GetDeviceInfoResponse get_device_info = 1004;\n    .SpaceX.API.Device.GetNextIdResponse get_next_id = 1006;\n    .SpaceX.API.Device.GetPingResponse get_ping = 1009;\n    .SpaceX.API.Device.SetTrustedKeysResponse set_trusted_keys = 1010;\n    .SpaceX.API.Device.FactoryResetResponse factory_reset = 1011;\n    .SpaceX.API.Device.GetLogResponse get_log = 1012;\n    .SpaceX.API.Device.SetSkuResponse set_sku = 1013;\n    .SpaceX.API.Device.UpdateResponse update = 1014;\n    .SpaceX.API.Device.GetNetworkInterfacesResponse get_network_interfaces = 1015;\n    .SpaceX.API.Device.PingHostResponse ping_host = 1016;\n    .SpaceX.API.Device.GetLocationResponse get_location = 1017;\n    .SpaceX.API.Device.GetHeapDumpResponse get_heap_dump = 1019;\n    .SpaceX.API.Device.RestartControlResponse restart_control = 1020;\n    .SpaceX.API.Device.FuseResponse fuse = 1021;\n    .SpaceX.API.Device.GetConnectionsResponse get_connections = 1023 [deprecated = true];\n    .SpaceX.API.Device.StartSpeedtestResponse start_speedtest = 1027;\n    .SpaceX.API.Device.GetSpeedtestStatusResponse get_speedtest_status = 1028;\n    .SpaceX.API.Device.ReportClientSpeedtestResponse report_client_speedtest = 1029;\n    .SpaceX.API.Device.InitiateRemoteSshResponse initiate_remote_ssh = 1030 [deprecated = true];\n    .SpaceX.API.Device.SelfTestResponse self_test = 1031;\n    .SpaceX.API.Device.SetTestModeResponse set_test_mode = 1032;\n    .SpaceX.API.Device.SoftwareUpdateResponse software_update = 1033;\n    .SpaceX.API.Device.EnableDebugTelemResponse enable_debug_telem = 1034;\n    .SpaceX.API.Device.GetRadioStatsResponse get_radio_stats = 1035;\n    .SpaceX.API.Device.GetTimeResponse time = 1037;\n    .SpaceX.API.Device.RunIperfServerResponse run_iperf_server = 1038;\n    .SpaceX.API.Device.GetGoroutineStackTracesResponse get_goroutine_stack_traces = 1041;\n    .SpaceX.API.Device.DishStowResponse dish_stow = 2002;\n    .SpaceX.API.Device.DishGetContextResponse dish_get_context = 2003;\n    .SpaceX.API.Device.DishGetStatusResponse dish_get_status = 2004;\n    .SpaceX.API.Device.DishAuthenticateResponse dish_authenticate = 2005;\n    .SpaceX.API.Device.DishGetHistoryResponse dish_get_history = 2006;\n    .SpaceX.API.Device.DishSetEmcResponse dish_set_emc = 2007;\n    .SpaceX.API.Device.DishGetObstructionMapResponse dish_get_obstruction_map = 2008;\n    .SpaceX.API.Device.DishGetEmcResponse dish_get_emc = 2009;\n    .SpaceX.API.Device.DishSetConfigResponse dish_set_config = 2010;\n    .SpaceX.API.Device.DishGetConfigResponse dish_get_config = 2011;\n    .SpaceX.API.Device.DishInhibitGpsResponse dish_inhibit_gps = 2013;\n    .SpaceX.API.Device.DishClearObstructionMapResponse dish_clear_obstruction_map = 2015;\n    .SpaceX.API.Device.DishSetMaxPowerTestModeResponse dish_set_max_power_test_mode = 2018;\n    .SpaceX.API.Device.DishActivateRssiScanResponse dish_activate_rssi_scan = 2019;\n    .SpaceX.API.Device.DishGetRssiScanResultResponse dish_get_rssi_scan_result = 2020;\n    .SpaceX.API.Device.DishFactoryResetResponse dish_factory_reset = 2021;\n    .SpaceX.API.Device.ResetButtonResponse reset_button = 2022;\n    .SpaceX.API.Device.SetPerVehicleConfigResponse set_per_vehicle_config = 2023;\n    .SpaceX.API.Device.DishAviationTestResponse dish_aviation_test = 2024;\n    .SpaceX.API.Device.DishInhibitRfResponse dish_inhibit_rf = 2026;\n    .SpaceX.API.Device.ZtlmQueryResponse ztlm_query = 2027;\n    .SpaceX.API.Device.DishStartTestModeServerResponse dish_start_test_mode_server = 2028;\n    .SpaceX.API.Device.UserReportedIssueResponse user_reported_issue = 2029;\n    .SpaceX.API.Device.WifiSetConfigResponse wifi_set_config = 3001;\n    .SpaceX.API.Device.WifiGetClientsResponse wifi_get_clients = 3002;\n    .SpaceX.API.Device.WifiSetupResponse wifi_setup = 3003;\n    .SpaceX.API.Device.WifiGetStatusResponse wifi_get_status = 3004;\n    .SpaceX.API.Device.WifiAuthenticateResponse wifi_authenticate = 3005;\n    .SpaceX.API.Device.WifiGetHistoryResponse wifi_get_history = 3006;\n    .SpaceX.API.Device.WifiGetPingMetricsResponse wifi_get_ping_metrics = 3007;\n    .SpaceX.API.Device.WifiGetConfigResponse wifi_get_config = 3009;\n    .SpaceX.API.Device.WifiSetMeshDeviceTrustResponse wifi_set_mesh_device_trust = 3012;\n    .SpaceX.API.Device.WifiSetMeshConfigResponse wifi_set_mesh_config = 3013 [deprecated = true];\n    .SpaceX.API.Device.WifiGetClientHistoryResponse wifi_get_client_history = 3015;\n    .SpaceX.API.Device.WifiSelfTestResponse wifi_self_test = 3016;\n    .SpaceX.API.Device.WifiGuestInfoResponse wifi_guest_info = 3020;\n    .SpaceX.API.Device.WifiRfTestResponse wifi_rf_test = 3021;\n    .SpaceX.API.Device.WifiGetPersistentStatsResponse wifi_get_persistent_stats = 3022;\n    .SpaceX.API.Device.WifiGetFirewallResponse wifi_get_firewall = 3024;\n    .SpaceX.API.Device.WifiFactoryTestCommandResponse wifi_factory_test_command = 3025;\n    .SpaceX.API.Device.WifiBackhaulStatsResponse wifi_backhaul_stats = 3026;\n    .SpaceX.API.Device.WifiClientSandboxResponse wifi_client_sandbox = 3027;\n    .SpaceX.API.Device.WifiUpdateResponse wifi_update = 3028;\n    .SpaceX.API.Device.WifiRunDebugNetsysResponse wifi_run_debug_netsys = 3029;\n    .SpaceX.API.Device.WifiResetEthPhyResponse wifi_reset_eth_phy = 3030;\n    .SpaceX.API.Device.WifiFlushHardwareNatResponse wifi_flush_hardware_nat = 3031;\n    .SpaceX.API.Device.TransceiverIFLoopbackTestResponse transceiver_if_loopback_test = 4001;\n    .SpaceX.API.Device.TransceiverGetStatusResponse transceiver_get_status = 4003;\n    .SpaceX.API.Device.TransceiverGetTelemetryResponse transceiver_get_telemetry = 4004;\n    .SpaceX.API.Device.Services.Unlock.StartUnlockResponse start_unlock = 5000;\n    .SpaceX.API.Device.Services.Unlock.FinishUnlockResponse finish_unlock = 5001;\n    .SpaceX.API.Device.WifiGetDiagnosticsResponse wifi_get_diagnostics = 6000;\n    .SpaceX.API.Device.DishGetDiagnosticsResponse dish_get_diagnostics = 6001;\n    .SpaceX.API.Device.GetGnssMeasurementResponse get_gnss_measurement = 7000;\n    .SpaceX.API.Device.ToggleModeResponse toggle_mode = 7001;\n  }\n  reserved 1018, 1026, 2012, 2014, 2025, 3008, 3011, 3014, 3203;\n  reserved \"start_dish_self_test\";\n}\n",
+          "stderr": "",
+          "outcome": "success",
+          "error": null
+        },
+        {
+          "command": [
+            "/opt/homebrew/bin/grpcurl",
+            "-plaintext",
+            "192.168.100.1:9200",
+            "describe",
+            "SpaceX.API.Device.GetStatusRequest"
+          ],
+          "endpoint": "192.168.100.1:9200",
+          "transport": "plaintext-http2",
+          "elapsedMs": 112,
+          "exitCode": 0,
+          "stdout": "SpaceX.API.Device.GetStatusRequest is a message:\nmessage GetStatusRequest {\n  .SpaceX.API.Device.RouterRole router_role = 1;\n}\n",
+          "stderr": "",
+          "outcome": "success",
+          "error": null
+        },
+        {
+          "command": [
+            "/opt/homebrew/bin/grpcurl",
+            "-plaintext",
+            "192.168.100.1:9200",
+            "describe",
+            "SpaceX.API.Device.DishGetStatusResponse"
+          ],
+          "endpoint": "192.168.100.1:9200",
+          "transport": "plaintext-http2",
+          "elapsedMs": 57,
+          "exitCode": 0,
+          "stdout": "SpaceX.API.Device.DishGetStatusResponse is a message:\nmessage DishGetStatusResponse {\n  .SpaceX.API.Device.DeviceInfo device_info = 1;\n  .SpaceX.API.Device.DeviceState device_state = 2;\n  float seconds_to_first_nonempty_slot = 1002;\n  float pop_ping_drop_rate = 1003;\n  .SpaceX.API.Device.DishObstructionStats obstruction_stats = 1004;\n  .SpaceX.API.Device.DishAlerts alerts = 1005;\n  float downlink_throughput_bps = 1007;\n  float uplink_throughput_bps = 1008;\n  float pop_ping_latency_ms = 1009;\n  bool stow_requested = 1010;\n  float boresight_azimuth_deg = 1011;\n  float boresight_elevation_deg = 1012;\n  .SpaceX.API.Device.DishOutage outage = 1014;\n  .SpaceX.API.Device.DishGpsStats gps_stats = 1015;\n  int32 eth_speed_mbps = 1016;\n  .SpaceX.API.Device.UserMobilityClass mobility_class = 1017;\n  bool is_snr_above_noise_floor = 1018;\n  .SpaceX.API.Device.DishReadyStates ready_states = 1019;\n  .SpaceX.API.Device.UserClassOfService class_of_service = 1020;\n  .SpaceX.API.Device.SoftwareUpdateState software_update_state = 1021;\n  bool is_snr_persistently_low = 1022;\n  .SpaceX.API.Device.HasActuators has_actuators = 1023;\n  .SpaceX.API.Satellites.Network.UtDisablementCode disablement_code = 1024;\n  bool has_signed_cals = 1025;\n  .SpaceX.API.Device.SoftwareUpdateStats software_update_stats = 1026;\n  .SpaceX.API.Device.AlignmentStats alignment_stats = 1027;\n  .SpaceX.API.Device.InitializationDurationSeconds initialization_duration_seconds = 1028;\n  bool is_cell_disabled = 1029;\n  bool swupdate_reboot_ready = 1030;\n  int32 seconds_until_swupdate_reboot_possible = 1031;\n  .SpaceX.API.Device.RebootReason reboot_reason = 1032;\n  bool high_power_test_mode = 1033;\n  repeated string connected_routers = 1040;\n  .SpaceX.API.Device.PLCStats plc_stats = 1041;\n  bool is_moving_fast_persisted = 1042;\n  .SpaceX.API.Device.DishUpsuStats upsu_stats = 1043;\n  .SpaceX.API.Telemetron.Public.Integrations.RateLimitReason dl_bandwidth_restricted_reason = 1044;\n  .SpaceX.API.Telemetron.Public.Integrations.RateLimitReason ul_bandwidth_restricted_reason = 1045;\n  .SpaceX.API.Device.DishApsStats aps_stats = 1048;\n  .SpaceX.API.Device.Quaternion ned2dish_quaternion = 1049;\n  map<string, .SpaceX.API.Device.RouterInfo> downstream_routers = 1050;\n  .SpaceX.API.Device.AccountShard account_shard = 1051;\n  bool mac_flag = 1052;\n  .SpaceX.API.Device.NatFlag nat_flag = 1053;\n  .SpaceX.API.Device.DishBatteryStats battery_stats = 1054;\n  bool user_debug_mode_enabled = 1055;\n  bool treat_as_metered = 1056;\n  .SpaceX.API.Device.DishConfig config = 2000;\n  reserved 1001, 1006, 1013, 1046, 1047;\n  reserved \"phy_rx_beam_snr_avg\", \"t_center\";\n}\n",
+          "stderr": "",
+          "outcome": "success",
+          "error": null
+        },
+        {
+          "command": [
+            "/opt/homebrew/bin/grpcurl",
+            "-plaintext",
+            "-d",
+            "{\"get_status\":{}}",
+            "192.168.100.1:9200",
+            "SpaceX.API.Device.Device/Handle"
+          ],
+          "endpoint": "192.168.100.1:9200",
+          "transport": "plaintext-http2",
+          "elapsedMs": 204,
+          "exitCode": 0,
+          "stdout": "{\n  \"apiVersion\": \"42\",\n  \"dishGetStatus\": {\n    \"deviceInfo\": {\n      \"id\": \"<redacted>\",\n      \"hardwareVersion\": \"mini1_pez_proto1\",\n      \"softwareVersion\": \"2026.07.14.cr82236.1\",\n      \"countryCode\": \"<redacted>\",\n      \"bootcount\": 6,\n      \"generationNumber\": \"<redacted>\",\n      \"buildId\": \"<redacted>\"\n    },\n    \"deviceState\": {\n      \"uptimeS\": \"11779\"\n    },\n    \"secondsToFirstNonemptySlot\": 1785097600,\n    \"obstructionStats\": {\n      \"fractionObstructed\": 0.0016970725,\n      \"validS\": 11553,\n      \"avgProlongedObstructionDurationS\": 0.75999427,\n      \"avgProlongedObstructionIntervalS\": 21600,\n      \"timeObstructed\": 0.0004656622,\n      \"patchesValid\": 4714\n    },\n    \"alerts\": {},\n    \"downlinkThroughputBps\": 11020131,\n    \"uplinkThroughputBps\": 290312.94,\n    \"popPingLatencyMs\": 18.084282,\n    \"boresightAzimuthDeg\": 8.645427,\n    \"boresightElevationDeg\": 71.05525,\n    \"gpsStats\": {\n      \"gpsValid\": true,\n      \"gpsSats\": 15,\n      \"pntFilterConvergenceState\": \"FILTER_CONVERGED\"\n    },\n    \"ethSpeedMbps\": 1000,\n    \"isSnrAboveNoiseFloor\": true,\n    \"readyStates\": {\n      \"scp\": true,\n      \"l1l2\": true,\n      \"xphy\": true,\n      \"aap\": true,\n      \"rf\": true\n    },\n    \"classOfService\": \"BUSINESS\",\n    \"softwareUpdateState\": \"IDLE\",\n    \"hasActuators\": \"HAS_ACTUATORS_NO\",\n    \"disablementCode\": \"OKAY\",\n    \"hasSignedCals\": true,\n    \"softwareUpdateStats\": {\n      \"softwareUpdateState\": \"IDLE\"\n    },\n    \"alignmentStats\": {\n      \"hasActuators\": \"HAS_ACTUATORS_NO\",\n      \"tiltAngleDeg\": 19.499208,\n      \"boresightAzimuthDeg\": 8.645427,\n      \"boresightElevationDeg\": 71.05525,\n      \"attitudeEstimationState\": \"FILTER_CONVERGED\",\n      \"attitudeUncertaintyDeg\": 0.6209836,\n      \"desiredBoresightAzimuthDeg\": 0.013673065,\n      \"desiredBoresightElevationDeg\": 76.017426\n    },\n    \"initializationDurationSeconds\": {\n      \"attitudeInitialization\": 168,\n      \"burstDetected\": 27,\n      \"ekfConverged\": 212,\n      \"firstCplane\": 84,\n      \"firstPopPing\": 97,\n      \"gpsValid\": 31,\n      \"initialNetworkEntry\": 72,\n      \"networkSchedule\": 88,\n      \"rfReady\": 23,\n      \"stableConnection\": 185\n    },\n    \"secondsUntilSwupdateRebootPossible\": -1,\n    \"connectedRouters\": \"<redacted>\",\n    \"plcStats\": {\n      \"port1Stats\": {},\n      \"port2Stats\": {},\n      \"port3Stats\": {}\n    },\n    \"upsuStats\": {},\n    \"dlBandwidthRestrictedReason\": \"NO_LIMIT\",\n    \"ulBandwidthRestrictedReason\": \"NO_LIMIT\",\n    \"apsStats\": {},\n    \"ned2dishQuaternion\": {\n      \"qScalar\": 0.12505884,\n      \"qX\": -0.7465581,\n      \"qY\": 0.64464486,\n      \"qZ\": -0.10697777\n    },\n    \"downstreamRouters\": \"<redacted>\",\n    \"accountShard\": \"<redacted>\",\n    \"natFlag\": \"NAT_DISABLED\",\n    \"batteryStats\": {},\n    \"treatAsMetered\": true,\n    \"config\": {\n      \"swupdateRebootHour\": 3,\n      \"applySnowMeltMode\": true,\n      \"applyLocationRequestMode\": true,\n      \"applyLevelDishMode\": true,\n      \"applyPowerSaveStartMinutes\": true,\n      \"applyPowerSaveDurationMinutes\": true,\n      \"applyPowerSaveMode\": true,\n      \"applySwupdateThreeDayDeferralEnabled\": true,\n      \"applyAssetClass\": true,\n      \"applySwupdateRebootHour\": true\n    }\n  }\n}",
+          "stderr": "",
+          "outcome": "success",
+          "error": null
+        }
+      ],
+      "sanitizedResponse": "{\n  \"apiVersion\": \"42\",\n  \"dishGetStatus\": {\n    \"deviceInfo\": {\n      \"id\": \"<redacted>\",\n      \"hardwareVersion\": \"mini1_pez_proto1\",\n      \"softwareVersion\": \"2026.07.14.cr82236.1\",\n      \"countryCode\": \"<redacted>\",\n      \"bootcount\": 6,\n      \"generationNumber\": \"<redacted>\",\n      \"buildId\": \"<redacted>\"\n    },\n    \"deviceState\": {\n      \"uptimeS\": \"11779\"\n    },\n    \"secondsToFirstNonemptySlot\": 1785097600,\n    \"obstructionStats\": {\n      \"fractionObstructed\": 0.0016970725,\n      \"validS\": 11553,\n      \"avgProlongedObstructionDurationS\": 0.75999427,\n      \"avgProlongedObstructionIntervalS\": 21600,\n      \"timeObstructed\": 0.0004656622,\n      \"patchesValid\": 4714\n    },\n    \"alerts\": {},\n    \"downlinkThroughputBps\": 11020131,\n    \"uplinkThroughputBps\": 290312.94,\n    \"popPingLatencyMs\": 18.084282,\n    \"boresightAzimuthDeg\": 8.645427,\n    \"boresightElevationDeg\": 71.05525,\n    \"gpsStats\": {\n      \"gpsValid\": true,\n      \"gpsSats\": 15,\n      \"pntFilterConvergenceState\": \"FILTER_CONVERGED\"\n    },\n    \"ethSpeedMbps\": 1000,\n    \"isSnrAboveNoiseFloor\": true,\n    \"readyStates\": {\n      \"scp\": true,\n      \"l1l2\": true,\n      \"xphy\": true,\n      \"aap\": true,\n      \"rf\": true\n    },\n    \"classOfService\": \"BUSINESS\",\n    \"softwareUpdateState\": \"IDLE\",\n    \"hasActuators\": \"HAS_ACTUATORS_NO\",\n    \"disablementCode\": \"OKAY\",\n    \"hasSignedCals\": true,\n    \"softwareUpdateStats\": {\n      \"softwareUpdateState\": \"IDLE\"\n    },\n    \"alignmentStats\": {\n      \"hasActuators\": \"HAS_ACTUATORS_NO\",\n      \"tiltAngleDeg\": 19.499208,\n      \"boresightAzimuthDeg\": 8.645427,\n      \"boresightElevationDeg\": 71.05525,\n      \"attitudeEstimationState\": \"FILTER_CONVERGED\",\n      \"attitudeUncertaintyDeg\": 0.6209836,\n      \"desiredBoresightAzimuthDeg\": 0.013673065,\n      \"desiredBoresightElevationDeg\": 76.017426\n    },\n    \"initializationDurationSeconds\": {\n      \"attitudeInitialization\": 168,\n      \"burstDetected\": 27,\n      \"ekfConverged\": 212,\n      \"firstCplane\": 84,\n      \"firstPopPing\": 97,\n      \"gpsValid\": 31,\n      \"initialNetworkEntry\": 72,\n      \"networkSchedule\": 88,\n      \"rfReady\": 23,\n      \"stableConnection\": 185\n    },\n    \"secondsUntilSwupdateRebootPossible\": -1,\n    \"connectedRouters\": \"<redacted>\",\n    \"plcStats\": {\n      \"port1Stats\": {},\n      \"port2Stats\": {},\n      \"port3Stats\": {}\n    },\n    \"upsuStats\": {},\n    \"dlBandwidthRestrictedReason\": \"NO_LIMIT\",\n    \"ulBandwidthRestrictedReason\": \"NO_LIMIT\",\n    \"apsStats\": {},\n    \"ned2dishQuaternion\": {\n      \"qScalar\": 0.12505884,\n      \"qX\": -0.7465581,\n      \"qY\": 0.64464486,\n      \"qZ\": -0.10697777\n    },\n    \"downstreamRouters\": \"<redacted>\",\n    \"accountShard\": \"<redacted>\",\n    \"natFlag\": \"NAT_DISABLED\",\n    \"batteryStats\": {},\n    \"treatAsMetered\": true,\n    \"config\": {\n      \"swupdateRebootHour\": 3,\n      \"applySnowMeltMode\": true,\n      \"applyLocationRequestMode\": true,\n      \"applyLevelDishMode\": true,\n      \"applyPowerSaveStartMinutes\": true,\n      \"applyPowerSaveDurationMinutes\": true,\n      \"applyPowerSaveMode\": true,\n      \"applySwupdateThreeDayDeferralEnabled\": true,\n      \"applyAssetClass\": true,\n      \"applySwupdateRebootHour\": true\n    }\n  }\n}"
+    },
+    "telemetryAvailable": true,
+    "telemetryEvidence": ["reflected Device.Handle accepted get_status and returned dishGetStatus"]
+  },
+  "limitations": [
+    "TCP reachability does not prove gRPC compatibility.",
+    "Reflection availability does not prove every RPC is compatible.",
+    "The captured response is sanitized before report output.",
+    "No mutating or control RPCs are executed."
+  ]
+}
