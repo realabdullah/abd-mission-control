@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
   NotFoundException,
   Param,
   Patch,
@@ -130,7 +131,7 @@ function windowFor(range: string): { from: Date; to: Date } {
 
 @Controller()
 export class MonitoringController {
-  constructor(private readonly hub: EventHub) {}
+  constructor(@Inject(EventHub) private readonly hub: EventHub) {}
 
   @Get('incidents/active')
   async active() {

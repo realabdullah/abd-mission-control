@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Headers,
+  Inject,
   NotFoundException,
   Param,
   Post,
@@ -79,7 +80,7 @@ function snapshotDto(row: unknown): unknown {
 
 @Controller()
 export class StarlinkController {
-  constructor(private readonly hub: EventHub) {}
+  constructor(@Inject(EventHub) private readonly hub: EventHub) {}
   private validateIntegration(id: string): void {
     if (id !== config.starlinkIntegrationId) throw new NotFoundException('Integration not found');
   }
