@@ -15,7 +15,7 @@ import { z } from 'zod';
 import { loadConfig } from '@abd-mission-control/config';
 import { createDatabase, TelemetryRepository } from '@abd-mission-control/database';
 import { streamEventTypeSchema, telemetryMetricSchema } from '@abd-mission-control/contracts';
-import { EventHub } from './events';
+import { EventHub, eventHub } from './events';
 import { Internal } from './auth';
 
 export const telemetryQuerySchema = z
@@ -81,7 +81,7 @@ function snapshotDto(row: unknown): unknown {
 
 @Controller()
 export class StarlinkController {
-  constructor(@Inject(EventHub) private readonly hub: EventHub) {}
+  constructor(@Inject(EventHub) private readonly hub: EventHub = eventHub) {}
   private validateIntegration(id: string): void {
     if (id !== config.starlinkIntegrationId) throw new NotFoundException('Integration not found');
   }

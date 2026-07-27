@@ -23,6 +23,9 @@ export class EventHub implements OnModuleDestroy {
     () => this.publish({ type: 'health', data: { status: 'heartbeat' } }),
     15000,
   );
+  constructor() {
+    this.heartbeat.unref();
+  }
   subscribe(listener: (event: StreamEvent) => void, afterId?: string): () => void {
     if (this.listeners.size >= 100) return () => undefined;
     this.listeners.add(listener);
@@ -47,3 +50,5 @@ export class EventHub implements OnModuleDestroy {
     this.listeners.clear();
   }
 }
+
+export const eventHub = new EventHub();

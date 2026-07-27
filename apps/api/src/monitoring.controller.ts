@@ -20,7 +20,7 @@ import {
   incidentTypeSchema,
 } from '@abd-mission-control/contracts';
 import { z } from 'zod';
-import { EventHub } from './events';
+import { EventHub, eventHub } from './events';
 import { apiRepository } from './starlink.controller';
 
 const config = loadConfig(process.env);
@@ -131,7 +131,7 @@ function windowFor(range: string): { from: Date; to: Date } {
 
 @Controller()
 export class MonitoringController {
-  constructor(@Inject(EventHub) private readonly hub: EventHub) {}
+  constructor(@Inject(EventHub) private readonly hub: EventHub = eventHub) {}
 
   @Get('incidents/active')
   async active() {
