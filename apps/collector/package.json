@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "tsc",
-    "dev": "tsx watch src/main.ts",
+    "dev": "set -a; [ ! -f ../../.env ] || . ../../.env; set +a; tsx watch src/main.ts",
     "start": "node dist/main.js",
     "lint": "eslint src",
     "type-check": "tsc --noEmit",

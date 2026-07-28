@@ -80,7 +80,13 @@ const pollInterval = setInterval(() => {
 const cleanupInterval = setInterval(() => {
   void cleanup();
 }, config.retentionCleanupIntervalMs);
-server.listen(config.collectorPort, config.collectorHost);
+server.listen(config.collectorPort, config.collectorHost, () => {
+  log('collector.started', {
+    host: config.collectorHost,
+    port: config.collectorPort,
+    pollIntervalMs: config.starlinkPollIntervalMs,
+  });
+});
 const shutdown = (): void => {
   log('collector.shutdown_started', {});
   clearInterval(pollInterval);
