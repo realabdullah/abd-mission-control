@@ -17,6 +17,7 @@ type Snapshot = {
   uplinkThroughputBps: number | null;
   powerWatts: number | null;
   obstructionFraction: number | null;
+  hardwareVersion: string | null;
   lastSuccessfulSampleAt: string | null;
 };
 type Stats = {
@@ -217,7 +218,7 @@ watch([metric, range], () => void load(), { immediate: true });
     <div v-if="error" class="error-banner" role="alert">
       {{ error }} <button @click="load">Try again</button>
     </div>
-    <PageSkeleton v-else-if="loading" variant="analytics" />
+    <PageSkeleton v-else-if="loading" variant="connection" />
     <template v-else>
       <section class="reading">
         <div>
@@ -267,6 +268,20 @@ watch([metric, range], () => void load(), { immediate: true });
             </dd>
           </div>
         </dl>
+      </section>
+      <section v-else-if="metric === 'obstruction'" class="obstruction-detail">
+        <StarlinkObstructionView
+          :fraction="snapshot?.obstructionFraction ?? null"
+          :hardware-version="snapshot?.hardwareVersion ?? null"
+          :observed-at="snapshot?.lastSuccessfulSampleAt ?? null"
+        />
+        <TelemetryChart
+          :title="details.title"
+          :unit="details.unit"
+          :points="points"
+          :range-label="range"
+          color="var(--mission)"
+        />
       </section>
       <TelemetryChart
         v-else
@@ -395,6 +410,10 @@ h1 {
   padding: 24px 0;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line-soft);
+}
+.obstruction-detail {
+  display: grid;
+  gap: 24px;
 }
 h2 {
   margin: 0;

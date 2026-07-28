@@ -124,7 +124,7 @@ function selectVibe(value: SpeedTestVibe) {
         <h2>Recent controlled tests</h2>
         <button class="text" :disabled="loading" @click="load">Refresh</button>
       </div>
-      <p v-if="loading">Loading history…</p>
+      <PageSkeleton v-if="loading" variant="speed-history" />
       <p v-else-if="!tests.length">No controlled speed tests have been run.</p>
       <div v-else class="rows">
         <article v-for="test in tests" :key="test.id">

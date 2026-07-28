@@ -72,7 +72,7 @@ onMounted(() => void load());
     <div v-if="error" class="error-banner" role="alert">
       {{ error }} <button @click="load">Try again</button>
     </div>
-    <PageSkeleton v-else-if="loading" variant="timeline" />
+    <PageSkeleton v-else-if="loading" variant="detail" />
     <template v-else-if="incident">
       <header class="page-head">
         <div>

@@ -78,7 +78,7 @@ onMounted(() => void load());
       </div>
     </header>
     <div v-if="error" class="error">{{ error }} <button @click="load">Try again</button></div>
-    <PageSkeleton v-else-if="loading" variant="analytics" /><template v-else
+    <PageSkeleton v-else-if="loading" variant="path" /><template v-else
       ><section class="path">
         <article>
           <StatusPill
