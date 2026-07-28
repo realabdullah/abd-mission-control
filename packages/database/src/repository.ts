@@ -3,12 +3,16 @@ import type {
   StarlinkSnapshot,
   TelemetrySample,
   NetworkEvent,
+  PathProbe,
+  SpeedTest,
 } from '@abd-mission-control/contracts';
 import * as schema from './schema';
 import {
   integrations,
   integrationSnapshots,
   telemetrySamples,
+  pathProbes,
+  speedTests,
   networkEvents,
   incidents,
   alertRules,
@@ -186,6 +190,41 @@ export class TelemetryRepository {
       )
       .onConflictDoNothing();
   }
+  async addPathProbes(probes: PathProbe[], integrationId: string): Promise<void> {
+    if (!probes.length) return;
+    await this.db.insert(pathProbes).values(
+      probes.map((probe) => ({
+        id: probe.id,
+        integrationId,
+        kind: probe.kind,
+        target: probe.target,
+        status: probe.status,
+        latencyMs: probe.latencyMs,
+        observedAt: new Date(probe.observedAt),
+        detail: probe.detail,
+      })),
+    );
+  }
+  async addSpeedTest(test: SpeedTest): Promise<void> {
+    await this.db.insert(speedTests).values({
+      id: test.id,
+      integrationId: test.integrationId,
+      state: test.state,
+      bytesTransferred: test.bytesTransferred,
+      downloadBps: test.downloadBps,
+      startedAt: new Date(test.startedAt),
+      completedAt: new Date(test.completedAt),
+      error: test.error,
+    });
+  }
+  async getSpeedTests(id: string, limit: number): Promise<unknown[]> {
+    return this.db
+      .select()
+      .from(speedTests)
+      .where(eq(speedTests.integrationId, id))
+      .orderBy(desc(speedTests.completedAt))
+      .limit(limit);
+  }
   async addEvent(event: NetworkEvent, integrationId: string): Promise<void> {
     await this.db
       .insert(networkEvents)
@@ -251,6 +290,14 @@ export class TelemetryRepository {
       .from(networkEvents)
       .where(eq(networkEvents.integrationId, id))
       .orderBy(desc(networkEvents.occurredAt))
+      .limit(limit);
+  }
+  async getPathProbes(id: string, limit: number): Promise<unknown[]> {
+    return this.db
+      .select()
+      .from(pathProbes)
+      .where(eq(pathProbes.integrationId, id))
+      .orderBy(desc(pathProbes.observedAt))
       .limit(limit);
   }
 

@@ -18,6 +18,11 @@ const environmentSchema = z.object({
   STARLINK_INTEGRATION_ID: z.string().uuid().default('00000000-0000-0000-0000-000000000001'),
   STARLINK_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(30000),
   STARLINK_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
+  PATH_PROBE_INTERVAL_MS: z.coerce.number().int().min(10000).default(60000),
+  PATH_PROBE_TIMEOUT_MS: z.coerce.number().int().min(250).max(10000).default(2000),
+  SPEED_TEST_URL: z.string().url().optional(),
+  SPEED_TEST_MAX_BYTES: z.coerce.number().int().positive().max(100000000).default(100000000),
+  SPEED_TEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(600000).default(180000),
   TELEMETRY_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
   EVENT_RETENTION_DAYS: z.coerce.number().int().positive().default(90),
   RETENTION_CLEANUP_INTERVAL_MS: z.coerce.number().int().positive().default(3600000),
@@ -42,6 +47,11 @@ export type AppConfig = {
   starlinkIntegrationId: string;
   starlinkPollIntervalMs: number;
   starlinkRequestTimeoutMs: number;
+  pathProbeIntervalMs: number;
+  pathProbeTimeoutMs: number;
+  speedTestUrl?: string;
+  speedTestMaxBytes: number;
+  speedTestTimeoutMs: number;
   telemetryRetentionDays: number;
   eventRetentionDays: number;
   retentionCleanupIntervalMs: number;
@@ -74,6 +84,11 @@ export function loadConfig(environment: NodeJS.ProcessEnv): AppConfig {
     starlinkIntegrationId: value.STARLINK_INTEGRATION_ID,
     starlinkPollIntervalMs: value.STARLINK_POLL_INTERVAL_MS,
     starlinkRequestTimeoutMs: value.STARLINK_REQUEST_TIMEOUT_MS,
+    pathProbeIntervalMs: value.PATH_PROBE_INTERVAL_MS,
+    pathProbeTimeoutMs: value.PATH_PROBE_TIMEOUT_MS,
+    speedTestUrl: value.SPEED_TEST_URL,
+    speedTestMaxBytes: value.SPEED_TEST_MAX_BYTES,
+    speedTestTimeoutMs: value.SPEED_TEST_TIMEOUT_MS,
     telemetryRetentionDays: value.TELEMETRY_RETENTION_DAYS,
     eventRetentionDays: value.EVENT_RETENTION_DAYS,
     retentionCleanupIntervalMs: value.RETENTION_CLEANUP_INTERVAL_MS,

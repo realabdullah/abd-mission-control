@@ -61,8 +61,12 @@ type Summary = {
   notableIssues: string[];
 };
 type Alert = { id: string; message: string; severity: string };
-type SystemStatus = { starlink: 'nominal' | 'degraded' | 'offline' | 'unavailable' };
+type SystemStatus = {
+  starlink: 'nominal' | 'degraded' | 'offline' | 'unavailable';
+  collector: 'ok' | 'unavailable' | 'delayed' | 'stopped';
+};
 const { api, request } = useMissionApi();
+const { notify } = useMissionNotifications();
 const integrationId = '00000000-0000-0000-0000-000000000001';
 const snapshot = ref<Snapshot | null>(null);
 const telemetry = ref<TelemetryRow[]>([]);
@@ -74,9 +78,7 @@ const alerts = ref<Alert[]>([]);
 const systemStatus = ref<SystemStatus | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
-const range = ref<'1h' | '6h' | '24h' | '7d' | '30d'>('1h');
 const streamState = ref<'connecting' | 'live' | 'reconnecting'>('connecting');
-const cursorTime = ref<number | null>(null);
 let source: EventSource | undefined;
 async function get<T>(path: string): Promise<T | null> {
   const response = await request(path);
@@ -89,9 +91,7 @@ async function load(): Promise<void> {
   try {
     const result = await Promise.all([
       get<Snapshot>(`/integrations/${integrationId}/snapshot`),
-      get<TelemetryRow[]>(
-        `/integrations/${integrationId}/telemetry?range=${range.value}&limit=400`,
-      ),
+      get<TelemetryRow[]>(`/integrations/${integrationId}/telemetry?range=1h&limit=400`),
       get<EventRow[]>(`/integrations/${integrationId}/events?limit=8`),
       get<Incident[]>('/incidents/active'),
       get<Stats>('/incidents/stats?range=24h'),
@@ -131,8 +131,27 @@ async function refreshLiveState(): Promise<void> {
   }
 }
 const state = computed(() => {
+  if (systemStatus.value?.collector === 'stopped')
+    return {
+      label: 'Monitoring has stopped',
+      tone: 'critical' as const,
+      action: 'View collector status',
+    };
+  if (
+    systemStatus.value?.collector === 'delayed' ||
+    systemStatus.value?.collector === 'unavailable'
+  )
+    return {
+      label: 'Monitoring data is delayed',
+      tone: 'warning' as const,
+      action: 'View collector status',
+    };
   if (systemStatus.value?.starlink === 'unavailable')
-    return { label: 'Starlink unreachable', tone: 'critical' as const };
+    return {
+      label: 'Starlink cannot be reached',
+      tone: 'critical' as const,
+      action: 'Troubleshoot reachability',
+    };
   const hasRecovered =
     snapshot.value?.state === 'nominal' &&
     snapshot.value.reachable === true &&
@@ -143,21 +162,51 @@ const state = computed(() => {
       incident.type !== 'starlink_device_unreachable',
   );
   if (hasRecovered && !hasActiveNonAvailabilityIssue)
-    return { label: 'Everything looks healthy', tone: 'success' as const };
+    return {
+      label: 'Everything looks healthy',
+      tone: 'success' as const,
+      action: 'Open connection quality',
+    };
   if (incidents.value.some((i) => i.type === 'internet_connectivity_lost'))
-    return { label: 'Internet offline', tone: 'critical' as const };
+    return {
+      label: 'Internet connection is offline',
+      tone: 'critical' as const,
+      action: 'View incident',
+    };
   if (incidents.value.some((i) => i.type === 'starlink_device_unreachable'))
-    return { label: 'Starlink unreachable', tone: 'critical' as const };
-  if (incidents.value.length) return { label: 'Connection degraded', tone: 'warning' as const };
+    return {
+      label: 'Starlink cannot be reached',
+      tone: 'critical' as const,
+      action: 'Troubleshoot reachability',
+    };
+  if (incidents.value.length)
+    return {
+      label: 'Connection needs attention',
+      tone: 'warning' as const,
+      action: 'View active issue',
+    };
   if (snapshot.value?.state === 'nominal')
-    return { label: 'Everything looks healthy', tone: 'success' as const };
-  return { label: 'Telemetry unavailable', tone: 'muted' as const };
+    return {
+      label: 'Everything looks healthy',
+      tone: 'success' as const,
+      action: 'Open connection quality',
+    };
+  return { label: 'Connection status is unavailable', tone: 'muted' as const, action: 'Try again' };
 });
 const healthCopy = computed(() => {
-  if (!snapshot.value) return 'Waiting for the first successful sample from the local collector.';
+  if (!snapshot.value) return 'Mission Control is waiting for a successful local sample.';
   if (state.value.tone === 'success')
     return `Your Starlink has been online for ${duration(snapshot.value.uptimeSeconds)}. No active issues need attention.`;
-  return 'The collector is watching the link and will update this view when the condition changes.';
+  if (state.value.label === 'Internet connection is offline')
+    return `A local connectivity incident has been confirmed since ${relative(incidents.value[0]?.startedAt ?? '')}.`;
+  if (state.value.label === 'Starlink cannot be reached')
+    return `The collector has not received a response since ${lastSample.value}.`;
+  if (
+    state.value.label === 'Monitoring data is delayed' ||
+    state.value.label === 'Monitoring has stopped'
+  )
+    return `The last successful sample was ${lastSample.value}. Connection health is unknown.`;
+  return 'The collector is monitoring the link and will update this view when the condition changes.';
 });
 const lastSample = computed(() =>
   snapshot.value?.lastSuccessfulSampleAt
@@ -182,6 +231,32 @@ function points(metric: string): ChartPoint[] {
     .filter((row) => row.metric === metric && pointValue(row) !== null)
     .map((row) => ({ timestamp: row.timestamp, value: pointValue(row)! }));
 }
+function median(values: number[]): number | null {
+  if (!values.length) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+const latencySummary = computed(() => {
+  const latencyPoints = points('latency_ms');
+  const midpoint = median(latencyPoints.map((point) => point.value));
+  const latest = latencyPoints.at(-1)?.value ?? snapshot.value?.latencyMs ?? null;
+  return {
+    value: midpoint == null ? 'Unavailable' : `${Math.round(midpoint)} ms`,
+    context:
+      latest == null
+        ? 'No current observation'
+        : `${Math.round(latest)} ms latest · observed locally`,
+    points: latencyPoints,
+  };
+});
+const qualitySummary = computed(() => ({
+  value: stats.value ? `${stats.value.uptimePercent.toFixed(2)}%` : 'Unavailable',
+  context: stats.value
+    ? `Observed availability · ${stats.value.outageCount} outage${stats.value.outageCount === 1 ? '' : 's'} in 24h`
+    : 'Waiting for reliability observations',
+  points: points('latency_ms'),
+}));
 function duration(seconds: number | null | undefined): string {
   if (seconds == null) return 'Unavailable';
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
@@ -219,10 +294,6 @@ async function acknowledge(id: string): Promise<void> {
   await request(`/alerts/${id}/acknowledge`, { method: 'POST' });
   await load();
 }
-function selectRange(value: typeof range.value) {
-  range.value = value;
-  void load();
-}
 onMounted(() => {
   void load();
   source = new EventSource(api('/stream'), { withCredentials: true });
@@ -238,7 +309,11 @@ onMounted(() => {
   });
   source.addEventListener('health', (event) => {
     const status = JSON.parse((event as MessageEvent).data) as { status?: string };
-    if (status.status === 'starlink_unreachable') systemStatus.value = { starlink: 'unavailable' };
+    if (status.status === 'starlink_unreachable')
+      systemStatus.value = {
+        starlink: 'unavailable',
+        collector: systemStatus.value?.collector ?? 'unavailable',
+      };
   });
   [
     'event',
@@ -247,7 +322,21 @@ onMounted(() => {
     'incident.resolved',
     'alert.created',
     'alert.acknowledged',
-  ].forEach((type) => source?.addEventListener(type, () => void load()));
+  ].forEach((type) =>
+    source?.addEventListener(type, (event) => {
+      if (type === 'alert.created') {
+        const alert = JSON.parse((event as MessageEvent).data) as {
+          message?: string;
+          severity?: string;
+        };
+        notify(
+          `Mission Control ${alert.severity ?? 'alert'}`,
+          alert.message ?? 'A new alert requires attention.',
+        );
+      }
+      void load();
+    }),
+  );
 });
 onUnmounted(() => source?.close());
 </script>
@@ -262,7 +351,7 @@ onUnmounted(() => source?.close());
       </div>
       <div class="head-status">
         <StatusPill :label="connectionIndicator.label" :tone="connectionIndicator.tone" />
-        <span>Updated {{ lastSample }}</span>
+        <DataFreshness :at="snapshot?.lastSuccessfulSampleAt ?? null" />
       </div>
     </header>
     <div v-if="error" class="error-banner" role="alert">
@@ -287,133 +376,54 @@ onUnmounted(() => source?.close());
               ? new Date(snapshot.lastSuccessfulSampleAt).toLocaleTimeString()
               : '—'
           }}</strong
-          ><NuxtLink to="/incidents"
+          ><NuxtLink :to="incidents.length ? '/incidents' : '/analytics'"
             >{{
               incidents.length
                 ? `${incidents.length} active issue${incidents.length === 1 ? '' : 's'}`
-                : 'No active incidents'
+                : state.action
             }}
             →</NuxtLink
           >
         </div>
       </section>
-      <section class="section-block">
+      <section class="diagnostic-section" aria-label="Connection diagnostics">
         <div class="section-title">
           <div>
             <span class="section-kicker">CURRENT CONNECTION</span>
-            <h2>Live metrics</h2>
+            <h2>Read the signal at a glance</h2>
           </div>
-          <span class="section-note">Direct from the latest device sample</span>
+          <span class="section-note">Latest data with a useful baseline</span>
         </div>
-        <div class="metric-grid">
-          <MetricCard
+        <div class="diagnostic-grid">
+          <DiagnosticSummary
+            label="Connection quality"
+            :value="qualitySummary.value"
+            :context="qualitySummary.context"
+            :points="qualitySummary.points"
+            to="/connection?metric=quality"
+            :tone="
+              state.tone === 'critical'
+                ? 'critical'
+                : state.tone === 'warning'
+                  ? 'warning'
+                  : 'normal'
+            "
+          />
+          <DiagnosticSummary
             label="Latency"
-            :value="number(snapshot?.latencyMs, 'ms')"
-            context="POP ping"
-            :help="{
-              title: 'Latency',
-              text: 'The round-trip time to Starlink’s point of presence. Lower is generally better for calls, games, and responsive browsing.',
-            }"
-          /><MetricCard
-            label="Download"
-            :value="mbps(snapshot?.downlinkThroughputBps)"
-            context="Live throughput"
-            :help="{
-              title: 'Download throughput',
-              text: 'The current receive rate reported by the device. It is a momentary gauge, not a data-usage total.',
-            }"
-          /><MetricCard
-            label="Upload"
-            :value="mbps(snapshot?.uplinkThroughputBps)"
-            context="Live throughput"
-          /><MetricCard
-            label="Packet loss"
-            :value="number(snapshot?.packetLossPercent, '%')"
-            :context="
-              snapshot?.packetLossPercent == null
-                ? 'Not exposed by this device'
-                : 'Recent observation'
+            :value="latencySummary.value"
+            :context="latencySummary.context"
+            :points="latencySummary.points"
+            to="/connection?metric=latency"
+            :tone="
+              state.tone === 'critical'
+                ? 'critical'
+                : state.tone === 'warning'
+                  ? 'warning'
+                  : 'normal'
             "
-            tone="muted"
-            :help="{
-              title: 'Packet loss',
-              text: 'The share of packets that did not arrive. This Starlink response does not currently expose the metric.',
-            }"
-          /><MetricCard
-            label="Uptime"
-            :value="duration(snapshot?.uptimeSeconds)"
-            context="Device runtime"
-          /><MetricCard
-            label="Obstruction"
-            :value="
-              snapshot?.obstructionFraction == null
-                ? 'Unavailable'
-                : `${(snapshot.obstructionFraction * 100).toFixed(2)}%`
-            "
-            context="Sky view fraction"
-            :help="{
-              title: 'Obstruction',
-              text: 'The fraction of the observed sky view affected by obstructions. Lower is better; this is not a direct outage percentage.',
-            }"
           />
         </div>
-      </section>
-      <section class="section-block">
-        <div class="section-title">
-          <div>
-            <span class="section-kicker">TELEMETRY</span>
-            <h2>Connection behaviour</h2>
-          </div>
-          <div class="range-switch" aria-label="Telemetry time range">
-            <button
-              v-for="option in ['1h', '6h', '24h', '7d', '30d']"
-              :key="option"
-              :class="{ selected: range === option }"
-              @click="selectRange(option as typeof range)"
-            >
-              {{ option }}
-            </button>
-          </div>
-        </div>
-        <div class="charts">
-          <TelemetryChart
-            title="Latency"
-            unit="ms"
-            :points="points('latency_ms')"
-            :range-label="range"
-            color="var(--mission)"
-            :cursor-time="cursorTime"
-            @update:cursor-time="cursorTime = $event"
-          /><TelemetryChart
-            title="Throughput"
-            unit="Mbps"
-            :points="points('downlink_throughput_bps')"
-            :range-label="range"
-            color="var(--telemetry)"
-            :cursor-time="cursorTime"
-            @update:cursor-time="cursorTime = $event"
-          /><TelemetryChart
-            title="Upload"
-            unit="Mbps"
-            :points="points('uplink_throughput_bps')"
-            :range-label="range"
-            color="var(--reliability)"
-            :cursor-time="cursorTime"
-            @update:cursor-time="cursorTime = $event"
-          /><TelemetryChart
-            title="Obstruction"
-            unit="fraction"
-            :points="points('obstruction_fraction')"
-            :range-label="range"
-            color="var(--info)"
-            :cursor-time="cursorTime"
-            @update:cursor-time="cursorTime = $event"
-          />
-        </div>
-        <p class="chart-footnote">
-          Hover to inspect a sample. Drag to pan and scroll to zoom. Missing observations remain
-          gaps.
-        </p>
       </section>
       <section class="split-block">
         <div class="section-block">
@@ -424,7 +434,7 @@ onUnmounted(() => source?.close());
             </div>
             <NuxtLink to="/incidents">View incidents →</NuxtLink>
           </div>
-          <div class="event-list">
+          <div class="event-list scroll-feed" tabindex="0" aria-label="Recent activity feed">
             <div v-if="!events.length" class="empty-state">
               <strong>Everything has been operating normally.</strong
               ><span>Meaningful state changes will appear here as the mission develops.</span>
@@ -449,22 +459,26 @@ onUnmounted(() => source?.close());
             </div>
             <NuxtLink to="/alerts">All alerts →</NuxtLink>
           </div>
-          <div v-if="!incidents.length && !alerts.length" class="empty-state">
-            <strong>No action needed.</strong
-            ><span>Active incidents and unacknowledged alerts will be surfaced here.</span>
-          </div>
-          <div v-for="incident in incidents" :key="incident.id" class="issue-row">
-            <StatusPill :label="incident.severity" :tone="tone(incident.severity)" />
-            <div>
-              <strong>{{ incident.title }}</strong
-              ><small>{{ duration(incident.durationSeconds) }} · {{ incident.description }}</small>
+          <div class="issue-list scroll-feed" tabindex="0" aria-label="Open issues feed">
+            <div v-if="!incidents.length && !alerts.length" class="empty-state">
+              <strong>No action needed.</strong
+              ><span>Active incidents and unacknowledged alerts will be surfaced here.</span>
             </div>
-          </div>
-          <div v-for="alert in alerts" :key="alert.id" class="issue-row">
-            <StatusPill :label="alert.severity" :tone="tone(alert.severity)" />
-            <div>
-              <strong>{{ alert.message }}</strong
-              ><button class="text-button" @click="acknowledge(alert.id)">Acknowledge</button>
+            <div v-for="incident in incidents" :key="incident.id" class="issue-row">
+              <StatusPill :label="incident.severity" :tone="tone(incident.severity)" />
+              <div>
+                <strong>{{ incident.title }}</strong
+                ><small
+                  >{{ duration(incident.durationSeconds) }} · {{ incident.description }}</small
+                >
+              </div>
+            </div>
+            <div v-for="alert in alerts" :key="alert.id" class="issue-row">
+              <StatusPill :label="alert.severity" :tone="tone(alert.severity)" />
+              <div>
+                <strong>{{ alert.message }}</strong
+                ><button class="text-button" @click="acknowledge(alert.id)">Acknowledge</button>
+              </div>
             </div>
           </div>
         </div>
@@ -535,6 +549,41 @@ onUnmounted(() => source?.close());
             >
           </div>
         </article>
+      </section>
+      <section class="device-details">
+        <div class="section-title">
+          <div>
+            <span class="section-kicker">DEVICE TELEMETRY</span>
+            <h2>Live device details</h2>
+          </div>
+          <NuxtLink to="/analytics">Open reliability →</NuxtLink>
+        </div>
+        <div class="metric-grid">
+          <MetricCard
+            label="Download"
+            :value="mbps(snapshot?.downlinkThroughputBps)"
+            context="Live throughput"
+          />
+          <MetricCard
+            label="Upload"
+            :value="mbps(snapshot?.uplinkThroughputBps)"
+            context="Live throughput"
+          />
+          <MetricCard
+            label="Power"
+            :value="number(snapshot?.powerWatts, 'W')"
+            context="Latest device draw"
+          />
+          <MetricCard
+            label="Obstruction"
+            :value="
+              snapshot?.obstructionFraction == null
+                ? 'Unavailable'
+                : `${(snapshot.obstructionFraction * 100).toFixed(2)}%`
+            "
+            context="Sky view fraction"
+          />
+        </div>
       </section>
       <footer class="technical">
         <span>{{ snapshot?.hardwareVersion ?? 'Starlink Mini' }}</span
@@ -659,7 +708,9 @@ onUnmounted(() => source?.close());
   font-size: 11px;
   letter-spacing: 0;
 }
-.section-block {
+.section-block,
+.diagnostic-section,
+.device-details {
   margin-top: 38px;
 }
 .section-title {
@@ -678,9 +729,15 @@ onUnmounted(() => source?.close());
 }
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1px;
   border: 1px solid var(--line-soft);
+  background: var(--line-soft);
+}
+.diagnostic-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
   background: var(--line-soft);
 }
 .charts {
@@ -725,8 +782,35 @@ onUnmounted(() => source?.close());
   margin-top: 38px;
 }
 .event-list,
-.attention {
+.issue-list {
   border-top: 1px solid var(--line);
+}
+.scroll-feed {
+  max-height: min(390px, 52vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--line) transparent;
+  scrollbar-gutter: stable;
+}
+.scroll-feed:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 4px;
+}
+.scroll-feed::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll-feed::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-feed::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--line);
+  background-clip: padding-box;
+}
+.scroll-feed::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-muted);
+  background-clip: padding-box;
 }
 .event-row,
 .issue-row {
@@ -850,7 +934,7 @@ onUnmounted(() => source?.close());
 }
 @media (max-width: 980px) {
   .metric-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
   .split-block,
   .bottom-grid {
@@ -871,6 +955,9 @@ onUnmounted(() => source?.close());
   .mission-summary {
     grid-template-columns: 32px 1fr;
     padding: 19px;
+  }
+  .diagnostic-grid {
+    grid-template-columns: 1fr;
   }
   .summary-side {
     grid-column: 2;
@@ -895,6 +982,9 @@ onUnmounted(() => source?.close());
   }
   .insight-values {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .scroll-feed {
+    max-height: min(340px, 50vh);
   }
   .technical {
     display: grid;

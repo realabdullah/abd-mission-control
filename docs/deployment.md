@@ -26,6 +26,8 @@ On its first deployment, apply these migrations to the Render database in order:
 1. `packages/database/drizzle/0000_phase2.sql`
 2. `packages/database/drizzle/0001_phase3_incidents.sql`
 3. `packages/database/drizzle/0002_auth.sql`
+4. `packages/database/drizzle/0003_path_probes.sql`
+5. `packages/database/drizzle/0004_speed_tests.sql`
 
 Set the Render API service's `API_CORS_ORIGIN` to the exact Vercel production
 origin. Set `AUTH_OWNER_EMAIL`, `AUTH_OWNER_PASSWORD`, `AUTH_SESSION_SECRET`,

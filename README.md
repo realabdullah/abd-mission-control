@@ -53,6 +53,8 @@ set -a; source .env; set +a
 psql "$DATABASE_URL" -f packages/database/drizzle/0000_phase2.sql
 psql "$DATABASE_URL" -f packages/database/drizzle/0001_phase3_incidents.sql
 psql "$DATABASE_URL" -f packages/database/drizzle/0002_auth.sql
+psql "$DATABASE_URL" -f packages/database/drizzle/0003_path_probes.sql
+psql "$DATABASE_URL" -f packages/database/drizzle/0004_speed_tests.sql
 ```
 
 ### Run locally

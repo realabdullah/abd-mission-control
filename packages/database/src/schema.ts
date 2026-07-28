@@ -75,6 +75,36 @@ export const telemetrySamples = pgTable(
     ),
   }),
 );
+export const pathProbes = pgTable(
+  'path_probes',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    integrationId: uuid('integration_id')
+      .notNull()
+      .references(() => integrations.id),
+    kind: text('kind').notNull(),
+    target: text('target').notNull(),
+    status: text('status').notNull(),
+    latencyMs: real('latency_ms'),
+    observedAt: timestamp('observed_at', { withTimezone: true }).notNull(),
+    detail: text('detail'),
+  },
+  (table) => ({
+    query: index('path_probes_query_idx').on(table.integrationId, table.observedAt),
+  }),
+);
+export const speedTests = pgTable('speed_tests', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  integrationId: uuid('integration_id')
+    .notNull()
+    .references(() => integrations.id),
+  state: text('state').notNull(),
+  bytesTransferred: bigint('bytes_transferred', { mode: 'number' }).notNull(),
+  downloadBps: real('download_bps'),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+  completedAt: timestamp('completed_at', { withTimezone: true }).notNull(),
+  error: text('error'),
+});
 export const networkEvents = pgTable(
   'network_events',
   {

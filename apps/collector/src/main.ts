@@ -5,6 +5,8 @@ import { StarlinkClient } from '@abd-mission-control/integrations';
 import { IncidentRuleEngine } from './incidents';
 import { generateDailySummary } from './daily-summary';
 import { CollectorPoller, realClock } from './poller';
+import { PathProbeRunner } from './path-probes';
+import { SpeedTestRunner } from './speed-test';
 
 const config = loadConfig(process.env);
 const database = createDatabase(config.databaseUrl);
@@ -48,7 +50,69 @@ const poller = new CollectorPoller({
   publish,
   logger: log,
 });
-const server = createServer((_request, response) => {
+const pathProbeRunner = new PathProbeRunner({
+  integrationId: config.starlinkIntegrationId,
+  timeoutMs: config.pathProbeTimeoutMs,
+  sink: repository,
+  logger: log,
+});
+const speedTestRunner = config.speedTestUrl
+  ? new SpeedTestRunner({
+      integrationId: config.starlinkIntegrationId,
+      url: config.speedTestUrl,
+      maxBytes: config.speedTestMaxBytes,
+      timeoutMs: config.speedTestTimeoutMs,
+      sink: repository,
+    })
+  : null;
+const server = createServer((request, response) => {
+  if (request.method === 'POST' && request.url === '/speed-tests') {
+    if (
+      !config.collectorApiToken ||
+      request.headers['x-collector-token'] !== config.collectorApiToken
+    ) {
+      response.writeHead(403, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ message: 'Collector authentication failed' }));
+      return;
+    }
+    if (!speedTestRunner) {
+      response.writeHead(409, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ message: 'Speed test is not configured' }));
+      return;
+    }
+    if (!speedTestRunner.start()) {
+      response.writeHead(409, { 'content-type': 'application/json' });
+      response.end(JSON.stringify(speedTestRunner.getProgress()));
+      return;
+    }
+    response.writeHead(202, { 'content-type': 'application/json' });
+    response.end(JSON.stringify(speedTestRunner.getProgress()));
+    return;
+  }
+  if (request.method === 'GET' && request.url === '/speed-tests/status') {
+    if (
+      !config.collectorApiToken ||
+      request.headers['x-collector-token'] !== config.collectorApiToken
+    ) {
+      response.writeHead(403, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ message: 'Collector authentication failed' }));
+      return;
+    }
+    response.writeHead(200, { 'content-type': 'application/json' });
+    response.end(
+      JSON.stringify(
+        speedTestRunner?.getProgress() ?? {
+          state: 'idle',
+          bytesTransferred: 0,
+          downloadBps: null,
+          startedAt: null,
+          updatedAt: new Date().toISOString(),
+          samples: [],
+        },
+      ),
+    );
+    return;
+  }
   response.writeHead(200, { 'content-type': 'application/json' });
   response.end(JSON.stringify({ service: 'collector', ...poller.getHealth() }));
 });
@@ -74,9 +138,14 @@ async function cleanup(): Promise<void> {
   }
 }
 void poller.runCycle().finally(() => incidentEngine.evaluateHealth(poller.getHealth()));
+void pathProbeRunner.runCycle();
 const pollInterval = setInterval(() => {
   void poller.runCycle().finally(() => incidentEngine.evaluateHealth(poller.getHealth()));
 }, config.starlinkPollIntervalMs);
+const pathProbeInterval = setInterval(
+  () => void pathProbeRunner.runCycle(),
+  config.pathProbeIntervalMs,
+);
 const cleanupInterval = setInterval(() => {
   void cleanup();
 }, config.retentionCleanupIntervalMs);
@@ -90,6 +159,7 @@ server.listen(config.collectorPort, config.collectorHost, () => {
 const shutdown = (): void => {
   log('collector.shutdown_started', {});
   clearInterval(pollInterval);
+  clearInterval(pathProbeInterval);
   clearInterval(cleanupInterval);
   poller.stop();
   client.close();

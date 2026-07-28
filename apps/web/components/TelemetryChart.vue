@@ -67,6 +67,11 @@ const formatValue = (value: number) =>
     : `${value.toFixed(value > 100 ? 0 : 1)} ${props.unit}`;
 const formatTime = (value: string) =>
   new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const textSummary = computed(() => {
+  if (!ordered.value.length) return `${props.title}: no historical observations in this range.`;
+  const latest = ordered.value.at(-1)!;
+  return `${props.title}: ${ordered.value.length} observations. Latest ${formatValue(latest.value)} at ${formatTime(latest.timestamp)}. Peak ${formatValue(Math.max(...values.value))}.`;
+});
 function nearest(clientX: number): ChartPoint | null {
   if (!ordered.value.length) return null;
   const box = (document.activeElement as SVGElement | null)?.getBoundingClientRect();
@@ -146,6 +151,7 @@ function reset() {
         @mouseup="endDrag"
         @mouseleave.capture="endDrag"
       >
+        <desc>{{ textSummary }}</desc>
         <line
           v-for="y in [40, 90, 140, 190]"
           :key="y"
@@ -212,6 +218,7 @@ function reset() {
       <span>Drag to pan · scroll to zoom</span
       ><span>{{ points.length ? formatValue(Math.max(...values)) + ' peak' : 'Unavailable' }}</span>
     </footer>
+    <p class="sr-only">{{ textSummary }}</p>
   </article>
 </template>
 <style scoped>
@@ -238,6 +245,17 @@ header small,
 footer {
   color: var(--ink-muted);
   font-size: 10px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 header small {
   display: block;

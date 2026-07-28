@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ServiceUnavailableException,
   Get,
   Headers,
   NotFoundException,
@@ -12,7 +13,13 @@ import {
 import type { Response } from 'express';
 import { z } from 'zod';
 import { loadConfig } from '@abd-mission-control/config';
-import { streamEventTypeSchema, telemetryMetricSchema } from '@abd-mission-control/contracts';
+import {
+  pathProbeSchema,
+  speedTestLiveSchema,
+  speedTestSchema,
+  streamEventTypeSchema,
+  telemetryMetricSchema,
+} from '@abd-mission-control/contracts';
 import { eventHub } from './events';
 import { Internal } from './auth';
 import { apiDatabase, apiRepository } from './api-database';
@@ -176,6 +183,70 @@ export class StarlinkController {
         };
       })
       .filter((row) => row !== null);
+  }
+  @Get('integrations/:id/path-probes')
+  async pathProbes(@Param('id') id: string, @Query('limit') limit?: string) {
+    this.validateIntegration(id);
+    const count = z.coerce.number().int().min(1).max(200).default(50).parse(limit);
+    return (await apiRepository.getPathProbes(id, count)).map((row) => {
+      const value = row as Record<string, unknown>;
+      return pathProbeSchema.parse({
+        id: value.id,
+        integrationId: value.integrationId,
+        kind: value.kind,
+        target: value.target,
+        status: value.status,
+        latencyMs: value.latencyMs,
+        observedAt:
+          value.observedAt instanceof Date ? value.observedAt.toISOString() : value.observedAt,
+        detail: value.detail,
+      });
+    });
+  }
+  @Get('integrations/:id/speed-tests')
+  async speedTests(@Param('id') id: string, @Query('limit') limit?: string) {
+    this.validateIntegration(id);
+    const count = z.coerce.number().int().min(1).max(50).default(12).parse(limit);
+    return (await apiRepository.getSpeedTests(id, count)).map((row) => {
+      const value = row as Record<string, unknown>;
+      return speedTestSchema.parse({
+        ...value,
+        startedAt:
+          value.startedAt instanceof Date ? value.startedAt.toISOString() : value.startedAt,
+        completedAt:
+          value.completedAt instanceof Date ? value.completedAt.toISOString() : value.completedAt,
+      });
+    });
+  }
+  @Post('integrations/:id/speed-tests')
+  async runSpeedTest(@Param('id') id: string) {
+    this.validateIntegration(id);
+    try {
+      const response = await fetch(`${config.collectorUrl}/speed-tests`, {
+        method: 'POST',
+        signal: AbortSignal.timeout(config.speedTestTimeoutMs + 5000),
+        headers: config.collectorApiToken ? { 'x-collector-token': config.collectorApiToken } : {},
+      });
+      const body: unknown = await response.json();
+      if (!response.ok) throw new Error(`Collector responded ${response.status}`);
+      return speedTestLiveSchema.parse(body);
+    } catch {
+      throw new ServiceUnavailableException('Speed testing is unavailable right now.');
+    }
+  }
+  @Get('integrations/:id/speed-tests/live')
+  async liveSpeedTest(@Param('id') id: string) {
+    this.validateIntegration(id);
+    try {
+      const response = await fetch(`${config.collectorUrl}/speed-tests/status`, {
+        signal: AbortSignal.timeout(3000),
+        headers: config.collectorApiToken ? { 'x-collector-token': config.collectorApiToken } : {},
+      });
+      if (!response.ok) throw new Error('collector unavailable');
+      return speedTestLiveSchema.parse(await response.json());
+    } catch {
+      throw new ServiceUnavailableException('Live speed testing is unavailable right now.');
+    }
   }
   @Post('internal/events')
   @Internal()

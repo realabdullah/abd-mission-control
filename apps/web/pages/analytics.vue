@@ -79,7 +79,7 @@ onMounted(() => void load());
       </button>
     </nav>
     <PageSkeleton v-if="loading" variant="analytics" />
-    <section v-else-if="stats" class="stats-grid">
+    <section id="reliability" v-else-if="stats" class="stats-grid">
       <MetricCard
         label="Availability"
         :value="percent(stats.uptimePercent)"
@@ -119,7 +119,7 @@ onMounted(() => void load());
       />
     </section>
     <section v-if="!loading && stats" class="analysis-grid">
-      <div>
+      <div id="latency">
         <div class="section-title">
           <div>
             <span class="section-kicker">SIGNAL HISTORY</span>

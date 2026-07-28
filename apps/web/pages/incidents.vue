@@ -82,7 +82,13 @@ onMounted(() => void load());
           will appear here with its duration and resolution.</span
         >
       </div>
-      <article v-for="incident in incidents" v-else :key="String(incident.id)" class="incident-row">
+      <NuxtLink
+        v-for="incident in incidents"
+        v-else
+        :key="String(incident.id)"
+        :to="`/incidents/${String(incident.id)}`"
+        class="incident-row"
+      >
         <div class="timeline-rail"><span :class="tone(incident.severity)"></span></div>
         <div class="incident-content">
           <div class="incident-top">
@@ -101,7 +107,7 @@ onMounted(() => void load());
             }}</span>
           </div>
         </div>
-      </article>
+      </NuxtLink>
     </section>
   </div>
 </template>
@@ -184,6 +190,11 @@ onMounted(() => void load());
   gap: 18px;
   padding: 22px 0;
   border-bottom: 1px solid var(--line-soft);
+  text-decoration: none;
+  transition: background-color 160ms ease-out;
+}
+.incident-row:hover {
+  background: color-mix(in srgb, var(--panel) 60%, transparent);
 }
 .timeline-rail {
   position: relative;

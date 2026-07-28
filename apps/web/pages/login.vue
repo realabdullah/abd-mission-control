@@ -2,6 +2,7 @@
 definePageMeta({ layout: 'auth' });
 
 const { request } = useMissionApi();
+const { setAuthenticated } = useAuthState();
 const email = ref('');
 const password = ref('');
 const submitting = ref(false);
@@ -17,6 +18,7 @@ async function signIn(): Promise<void> {
       body: JSON.stringify({ email: email.value, password: password.value }),
     });
     if (!response.ok) throw new Error('That email or password is not recognized.');
+    setAuthenticated(true);
     await navigateTo('/');
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : 'Unable to sign in right now.';

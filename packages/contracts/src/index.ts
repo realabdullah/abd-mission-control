@@ -62,6 +62,41 @@ export const telemetrySampleSchema = z.object({
 });
 export type TelemetrySample = z.infer<typeof telemetrySampleSchema>;
 
+export const pathProbeKindSchema = z.enum(['dns', 'public_tcp']);
+export const pathProbeStatusSchema = z.enum(['success', 'failure', 'timeout']);
+export const pathProbeSchema = z.object({
+  id: z.string().uuid(),
+  integrationId: z.string().uuid(),
+  kind: pathProbeKindSchema,
+  target: z.string().min(1),
+  status: pathProbeStatusSchema,
+  latencyMs: z.number().nonnegative().nullable(),
+  observedAt: z.string().datetime(),
+  detail: z.string().nullable(),
+});
+export type PathProbe = z.infer<typeof pathProbeSchema>;
+
+export const speedTestSchema = z.object({
+  id: z.string().uuid(),
+  integrationId: z.string().uuid(),
+  state: z.enum(['completed', 'failed']),
+  bytesTransferred: z.number().int().nonnegative(),
+  downloadBps: z.number().nonnegative().nullable(),
+  startedAt: z.string().datetime(),
+  completedAt: z.string().datetime(),
+  error: z.string().nullable(),
+});
+export type SpeedTest = z.infer<typeof speedTestSchema>;
+export const speedTestLiveSchema = z.object({
+  state: z.enum(['idle', 'running', 'completed', 'failed']),
+  bytesTransferred: z.number().int().nonnegative(),
+  downloadBps: z.number().nonnegative().nullable(),
+  startedAt: z.string().datetime().nullable(),
+  updatedAt: z.string().datetime(),
+  samples: z.array(z.object({ at: z.string().datetime(), bps: z.number().nonnegative() })).max(120),
+});
+export type SpeedTestLive = z.infer<typeof speedTestLiveSchema>;
+
 export const networkEventSchema = z.object({
   id: z.string(),
   timestamp: z.string().datetime(),

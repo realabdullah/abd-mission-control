@@ -3,11 +3,15 @@ import { onBeforeUnmount, onMounted, ref } from 'vue';
 
 const route = useRoute();
 const { request } = useMissionApi();
+const { setAuthenticated } = useAuthState();
 const sidebarOpen = ref(false);
 const sidebarExpanded = ref(false);
 const signingOut = ref(false);
 const nav = [
   { to: '/', label: 'Mission', icon: '◎' },
+  { to: '/connection', label: 'Connection', icon: '⌁' },
+  { to: '/path', label: 'Connection path', icon: '↝' },
+  { to: '/speed-test', label: 'Speed test', icon: '⇣' },
   { to: '/analytics', label: 'Analytics', icon: '⌁' },
   { to: '/incidents', label: 'Incidents', icon: '!' },
   { to: '/alerts', label: 'Alerts', icon: '◌' },
@@ -25,6 +29,7 @@ async function signOut(): Promise<void> {
   try {
     await request('/auth/logout', { method: 'POST' });
   } finally {
+    setAuthenticated(false);
     await navigateTo('/login');
     signingOut.value = false;
   }

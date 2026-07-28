@@ -1,3 +1,5 @@
+import { readonly, ref } from 'vue';
+
 export type MissionTheme =
   | 'mint'
   | 'sky'
@@ -13,6 +15,7 @@ export type MissionTheme =
   | 'ice';
 
 type MissionPalette = { label: string; colors: Record<string, string> };
+const activeMissionTheme = ref<MissionTheme>('mint');
 
 export const missionThemes: Record<MissionTheme, MissionPalette> = {
   mint: palette('Signal mint', {
@@ -364,4 +367,9 @@ export function applyMissionTheme(theme: MissionTheme): void {
   for (const [name, value] of Object.entries(palette.colors))
     root.style.setProperty(`--${name}`, value);
   root.dataset.missionTheme = theme;
+  activeMissionTheme.value = theme;
+}
+
+export function useActiveMissionTheme() {
+  return readonly(activeMissionTheme);
 }
