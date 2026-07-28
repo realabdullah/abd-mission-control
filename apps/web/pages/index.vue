@@ -61,6 +61,7 @@ type Summary = {
   notableIssues: string[];
 };
 type Alert = { id: string; message: string; severity: string };
+type SystemStatus = { starlink: 'nominal' | 'degraded' | 'offline' | 'unavailable' };
 const { api, request } = useMissionApi();
 const integrationId = '00000000-0000-0000-0000-000000000001';
 const snapshot = ref<Snapshot | null>(null);
@@ -70,6 +71,7 @@ const events = ref<EventRow[]>([]);
 const stats = ref<Stats | null>(null);
 const summary = ref<Summary | null>(null);
 const alerts = ref<Alert[]>([]);
+const systemStatus = ref<SystemStatus | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const range = ref<'1h' | '6h' | '24h' | '7d' | '30d'>('1h');
@@ -95,6 +97,7 @@ async function load(): Promise<void> {
       get<Stats>('/incidents/stats?range=24h'),
       get<Summary[]>(`/daily-summaries?limit=1`),
       get<Alert[]>('/alerts?acknowledged=false&limit=20'),
+      get<SystemStatus>('/system/status'),
     ]);
     snapshot.value = result[0];
     telemetry.value = result[1] ?? [];
@@ -103,6 +106,7 @@ async function load(): Promise<void> {
     stats.value = result[4];
     summary.value = result[5]?.[0] ?? null;
     alerts.value = result[6] ?? [];
+    systemStatus.value = result[7];
   } catch (cause) {
     error.value =
       cause instanceof Error ? cause.message : 'The API could not provide the mission view.';
@@ -110,7 +114,36 @@ async function load(): Promise<void> {
     loading.value = false;
   }
 }
+async function refreshLiveState(): Promise<void> {
+  try {
+    const [activeIncidents, activeAlerts, recentEvents, currentSystemStatus] = await Promise.all([
+      get<Incident[]>('/incidents/active'),
+      get<Alert[]>('/alerts?acknowledged=false&limit=20'),
+      get<EventRow[]>(`/integrations/${integrationId}/events?limit=8`),
+      get<SystemStatus>('/system/status'),
+    ]);
+    incidents.value = activeIncidents ?? [];
+    alerts.value = activeAlerts ?? [];
+    events.value = recentEvents ?? [];
+    systemStatus.value = currentSystemStatus;
+  } catch {
+    // The snapshot is still useful when a secondary dashboard request fails.
+  }
+}
 const state = computed(() => {
+  if (systemStatus.value?.starlink === 'unavailable')
+    return { label: 'Starlink unreachable', tone: 'critical' as const };
+  const hasRecovered =
+    snapshot.value?.state === 'nominal' &&
+    snapshot.value.reachable === true &&
+    snapshot.value.internetConnected === true;
+  const hasActiveNonAvailabilityIssue = incidents.value.some(
+    (incident) =>
+      incident.type !== 'internet_connectivity_lost' &&
+      incident.type !== 'starlink_device_unreachable',
+  );
+  if (hasRecovered && !hasActiveNonAvailabilityIssue)
+    return { label: 'Everything looks healthy', tone: 'success' as const };
   if (incidents.value.some((i) => i.type === 'internet_connectivity_lost'))
     return { label: 'Internet offline', tone: 'critical' as const };
   if (incidents.value.some((i) => i.type === 'starlink_device_unreachable'))
@@ -131,6 +164,15 @@ const lastSample = computed(() =>
     ? relative(snapshot.value.lastSuccessfulSampleAt)
     : 'No successful sample',
 );
+const connectionIndicator = computed(() => {
+  if (systemStatus.value?.starlink === 'unavailable')
+    return { label: 'Starlink unreachable', tone: 'critical' as const };
+  if (streamState.value === 'live') return { label: 'Live monitoring', tone: 'success' as const };
+  return {
+    label: streamState.value === 'reconnecting' ? 'Reconnecting' : 'Connecting',
+    tone: 'warning' as const,
+  };
+});
 function pointValue(row: TelemetryRow): number | null {
   const value = row.latest ?? row.value ?? row.average;
   return typeof value === 'number' ? value : null;
@@ -192,6 +234,11 @@ onMounted(() => {
   };
   source.addEventListener('snapshot', (event) => {
     snapshot.value = JSON.parse((event as MessageEvent).data) as Snapshot;
+    void refreshLiveState();
+  });
+  source.addEventListener('health', (event) => {
+    const status = JSON.parse((event as MessageEvent).data) as { status?: string };
+    if (status.status === 'starlink_unreachable') systemStatus.value = { starlink: 'unavailable' };
   });
   [
     'event',
@@ -214,16 +261,8 @@ onUnmounted(() => source?.close());
         <p class="lede">A calm read on the health of your local Starlink connection.</p>
       </div>
       <div class="head-status">
-        <StatusPill
-          :label="
-            streamState === 'live'
-              ? 'Live telemetry'
-              : streamState === 'reconnecting'
-                ? 'Reconnecting'
-                : 'Connecting'
-          "
-          :tone="streamState === 'live' ? 'success' : 'warning'"
-        /><span>Updated {{ lastSample }}</span>
+        <StatusPill :label="connectionIndicator.label" :tone="connectionIndicator.tone" />
+        <span>Updated {{ lastSample }}</span>
       </div>
     </header>
     <div v-if="error" class="error-banner" role="alert">
