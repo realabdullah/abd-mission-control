@@ -87,6 +87,15 @@ export const speedTestSchema = z.object({
   error: z.string().nullable(),
 });
 export type SpeedTest = z.infer<typeof speedTestSchema>;
+export const speedTestClientResultSchema = z.object({
+  state: z.enum(['completed', 'failed']),
+  bytesTransferred: z.number().int().nonnegative().max(100000000),
+  downloadBps: z.number().nonnegative().nullable(),
+  startedAt: z.string().datetime(),
+  completedAt: z.string().datetime(),
+  error: z.string().max(500).nullable(),
+});
+export type SpeedTestClientResult = z.infer<typeof speedTestClientResultSchema>;
 export const speedTestLiveSchema = z.object({
   state: z.enum(['idle', 'running', 'completed', 'failed']),
   bytesTransferred: z.number().int().nonnegative(),
