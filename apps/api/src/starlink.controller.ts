@@ -1,5 +1,6 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   ServiceUnavailableException,
   Get,
@@ -15,14 +16,14 @@ import { z } from 'zod';
 import { loadConfig } from '@abd-mission-control/config';
 import {
   pathProbeSchema,
-  speedTestLiveSchema,
+  speedTestClientResultSchema,
   speedTestSchema,
   streamEventTypeSchema,
   telemetryMetricSchema,
 } from '@abd-mission-control/contracts';
 import { eventHub } from './events';
 import { Internal } from './auth';
-import { apiDatabase, apiRepository } from './api-database';
+import { apiRepository } from './api-database';
 
 export const telemetryQuerySchema = z
   .object({
@@ -219,34 +220,28 @@ export class StarlinkController {
     });
   }
   @Post('integrations/:id/speed-tests')
-  async runSpeedTest(@Param('id') id: string) {
+  async saveSpeedTest(@Param('id') id: string, @Body() body: unknown) {
     this.validateIntegration(id);
-    try {
-      const response = await fetch(`${config.collectorUrl}/speed-tests`, {
-        method: 'POST',
-        signal: AbortSignal.timeout(config.speedTestTimeoutMs + 5000),
-        headers: config.collectorApiToken ? { 'x-collector-token': config.collectorApiToken } : {},
-      });
-      const body: unknown = await response.json();
-      if (!response.ok) throw new Error(`Collector responded ${response.status}`);
-      return speedTestLiveSchema.parse(body);
-    } catch {
-      throw new ServiceUnavailableException('Speed testing is unavailable right now.');
-    }
+    const parsed = speedTestClientResultSchema.safeParse(body);
+    if (!parsed.success) throw new BadRequestException('Invalid speed-test result.');
+    const test = speedTestSchema.parse({
+      id: crypto.randomUUID(),
+      integrationId: id,
+      ...parsed.data,
+    });
+    await apiRepository.addSpeedTest(test);
+    return test;
   }
-  @Get('integrations/:id/speed-tests/live')
-  async liveSpeedTest(@Param('id') id: string) {
+  @Get('integrations/:id/speed-tests/config')
+  speedTestConfig(@Param('id') id: string) {
     this.validateIntegration(id);
-    try {
-      const response = await fetch(`${config.collectorUrl}/speed-tests/status`, {
-        signal: AbortSignal.timeout(3000),
-        headers: config.collectorApiToken ? { 'x-collector-token': config.collectorApiToken } : {},
-      });
-      if (!response.ok) throw new Error('collector unavailable');
-      return speedTestLiveSchema.parse(await response.json());
-    } catch {
-      throw new ServiceUnavailableException('Live speed testing is unavailable right now.');
-    }
+    if (!config.speedTestUrl)
+      throw new ServiceUnavailableException('Speed testing is not configured.');
+    return {
+      url: config.speedTestUrl,
+      maxBytes: config.speedTestMaxBytes,
+      timeoutMs: config.speedTestTimeoutMs,
+    };
   }
   @Post('internal/events')
   @Internal()

@@ -23,6 +23,12 @@ services:
         sync: false
       - key: COLLECTOR_URL
         sync: false
+      - key: SPEED_TEST_URL
+        sync: false
+      - key: SPEED_TEST_MAX_BYTES
+        value: '100000000'
+      - key: SPEED_TEST_TIMEOUT_MS
+        value: '180000'
       - key: DATABASE_URL
         fromDatabase:
           name: abd-mission-control-db

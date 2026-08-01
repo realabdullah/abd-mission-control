@@ -56,21 +56,112 @@ async function run() {
   justCompleted.value = false;
   running.value = true;
   error.value = null;
+  const startedAt = new Date().toISOString();
+  let bytesTransferred = 0;
   try {
-    const response = await request(`/integrations/${id}/speed-tests`, { method: 'POST' });
-    if (!response.ok) throw new Error('The collector could not start the speed test.');
-    live.value = await response.json();
-    while (live.value.state === 'running') {
-      await new Promise((resolve) => window.setTimeout(resolve, 700));
-      const status = await request(`/integrations/${id}/speed-tests/live`);
-      if (!status.ok) throw new Error('Live speed readings are temporarily unavailable.');
-      live.value = await status.json();
+    const configuration = await request(`/integrations/${id}/speed-tests/config`);
+    if (!configuration.ok) throw new Error('Speed testing is not configured right now.');
+    const { url, maxBytes, timeoutMs } = (await configuration.json()) as {
+      url: string;
+      maxBytes: number;
+      timeoutMs: number;
+    };
+    const started = Date.now();
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+    const samples: SpeedTestLive['samples'] = [];
+    live.value = {
+      state: 'running',
+      bytesTransferred: 0,
+      downloadBps: 0,
+      startedAt,
+      updatedAt: startedAt,
+      samples,
+    };
+    try {
+      const download = await fetch(url, {
+        cache: 'no-store',
+        redirect: 'error',
+        signal: controller.signal,
+      });
+      if (!download.ok || !download.body)
+        throw new Error('The speed-test download is unavailable.');
+      const reader = download.body.getReader();
+      let lastPublishedAt = started;
+      while (bytesTransferred < maxBytes) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        bytesTransferred += Math.min(chunk.value.byteLength, maxBytes - bytesTransferred);
+        const now = Date.now();
+        if (now - lastPublishedAt >= 250 || bytesTransferred >= maxBytes) {
+          const bps = (bytesTransferred * 8000) / Math.max(now - started, 1);
+          samples.push({ at: new Date(now).toISOString(), bps });
+          while (samples.length > 120) samples.shift();
+          live.value = {
+            state: 'running',
+            bytesTransferred,
+            downloadBps: bps,
+            startedAt,
+            updatedAt: new Date(now).toISOString(),
+            samples: [...samples],
+          };
+          lastPublishedAt = now;
+        }
+        if (bytesTransferred >= maxBytes) await reader.cancel();
+      }
+    } finally {
+      window.clearTimeout(timeout);
     }
+    const completedAt = new Date().toISOString();
+    const completedAtMs = Date.parse(completedAt);
+    const result = {
+      state: 'completed' as const,
+      bytesTransferred,
+      downloadBps: (bytesTransferred * 8000) / Math.max(completedAtMs - started, 1),
+      startedAt,
+      completedAt,
+      error: null,
+    };
+    const response = await request(`/integrations/${id}/speed-tests`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(result),
+    });
+    if (!response.ok) throw new Error('The speed-test result could not be saved.');
+    const saved = (await response.json()) as SpeedTest;
+    tests.value = [saved, ...tests.value];
+    live.value = {
+      ...live.value,
+      state: 'completed',
+      downloadBps: saved.downloadBps,
+      updatedAt: completedAt,
+    };
     await load();
-    justCompleted.value = live.value.state === 'completed';
+    justCompleted.value = true;
   } catch (cause) {
-    error.value =
-      cause instanceof Error ? cause.message : 'The collector could not start the speed test.';
+    const completedAt = new Date().toISOString();
+    if (bytesTransferred > 0) {
+      await request(`/integrations/${id}/speed-tests`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          state: 'failed',
+          bytesTransferred,
+          downloadBps: null,
+          startedAt,
+          completedAt,
+          error: cause instanceof Error ? cause.message : 'Speed test failed',
+        }),
+      }).catch(() => undefined);
+    }
+    live.value = {
+      ...live.value,
+      state: 'failed',
+      bytesTransferred,
+      downloadBps: null,
+      updatedAt: completedAt,
+    };
+    error.value = cause instanceof Error ? cause.message : 'The speed test could not be completed.';
   } finally {
     running.value = false;
   }
@@ -92,8 +183,8 @@ function selectVibe(value: SpeedTestVibe) {
         <div class="crumb">MISSION / DIAGNOSTICS</div>
         <h1>Speed test</h1>
         <p>
-          Measure a dedicated download path from the collector. This is not the live throughput
-          shown elsewhere.
+          Measure this device's dedicated download path. This is not the live throughput shown
+          elsewhere.
         </p>
       </div>
       <NuxtLink to="/connection">← Connection</NuxtLink>
@@ -142,9 +233,8 @@ function selectVibe(value: SpeedTestVibe) {
     <aside>
       <h2>How to use this</h2>
       <p>
-        Use a few runs at different times to establish a baseline. A result reflects this download
-        endpoint, this moment, and the collector’s network path—it does not prove a Starlink plan
-        speed.
+        Use a few runs at different times to establish a baseline. A result reflects this device,
+        its current network, and the download endpoint—it does not prove a Starlink plan speed.
       </p>
     </aside>
   </div>
